@@ -3,13 +3,26 @@ import { createClient } from "@/lib/supabase/server"
 import Sidebar from "@/components/layout/Sidebar"
 import type { ServiceModule, SocialNetwork } from "@/lib/types"
 
-// Demo data — replace with real Supabase queries after DB setup
-function getMockWorkspace(id: string) {
+const FALLBACK_WORKSPACE = {
+  name: "Mi Workspace",
+  activeServices: ["legales", "social_media", "ads", "influencers", "webs", "extras"] as ServiceModule[],
+  activeNetworks: ["instagram", "facebook", "tiktok", "google"] as SocialNetwork[],
+}
+
+async function getWorkspace(id: string) {
+  if (DEMO_MODE) return { id, ...FALLBACK_WORKSPACE }
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("workspaces")
+    .select("name, active_services, active_networks")
+    .eq("id", id)
+    .single()
+  if (!data) return { id, ...FALLBACK_WORKSPACE }
   return {
     id,
-    name: "Cliente Demo",
-    activeServices: ["legales", "social_media", "ads", "influencers", "webs", "extras"] as ServiceModule[],
-    activeNetworks: ["instagram", "facebook", "tiktok", "google"] as SocialNetwork[],
+    name: data.name,
+    activeServices: (data.active_services ?? FALLBACK_WORKSPACE.activeServices) as ServiceModule[],
+    activeNetworks: (data.active_networks ?? FALLBACK_WORKSPACE.activeNetworks) as SocialNetwork[],
   }
 }
 
@@ -29,7 +42,7 @@ export default async function WorkspaceLayout({
   }
 
   const { workspaceId } = await params
-  const workspace = getMockWorkspace(workspaceId)
+  const workspace = await getWorkspace(workspaceId)
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F9F9F9]">
