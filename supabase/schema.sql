@@ -201,60 +201,91 @@ $$;
 create policy "workspace_member_read" on public.workspaces
   for select using (public.user_in_workspace(id) or public.is_jc_admin());
 
-create policy "jc_admin_all" on public.workspaces
-  for all using (public.is_jc_admin());
+create policy "jc_admin_all_workspaces" on public.workspaces
+  for all using (public.is_jc_admin()) with check (public.is_jc_admin());
 
 -- Workspace users policies
 create policy "see_own_workspace_members" on public.workspace_users
   for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
 
 create policy "jc_manage_workspace_users" on public.workspace_users
-  for all using (public.is_jc_admin());
+  for all using (public.is_jc_admin()) with check (public.is_jc_admin());
 
--- Generic workspace-scoped read policy for content tables
+-- Legal documents
 create policy "workspace_member_read_legal" on public.legal_documents
   for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
-create policy "jc_manage_legal" on public.legal_documents
-  for all using (public.is_jc_admin());
+create policy "workspace_member_update_legal" on public.legal_documents
+  for update using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
+create policy "jc_insert_legal" on public.legal_documents
+  for insert with check (public.is_jc_admin());
+create policy "jc_delete_legal" on public.legal_documents
+  for delete using (public.is_jc_admin());
 
+-- Social posts
 create policy "workspace_member_read_posts" on public.social_posts
   for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
 create policy "workspace_member_update_posts" on public.social_posts
   for update using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
-create policy "jc_manage_posts" on public.social_posts
-  for insert using (public.is_jc_admin());
+create policy "jc_insert_posts" on public.social_posts
+  for insert with check (public.is_jc_admin());
+create policy "jc_delete_posts" on public.social_posts
+  for delete using (public.is_jc_admin());
 
+-- Post comments
 create policy "workspace_member_read_comments" on public.post_comments
   for select using (exists (select 1 from public.social_posts p where p.id = post_id and public.user_in_workspace(p.workspace_id)));
 create policy "workspace_member_insert_comments" on public.post_comments
   for insert with check (exists (select 1 from public.social_posts p where p.id = post_id and public.user_in_workspace(p.workspace_id)));
 
+-- Influencers
 create policy "workspace_member_read_influencers" on public.influencers
   for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
 create policy "workspace_member_update_influencers" on public.influencers
   for update using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
-create policy "jc_manage_influencers" on public.influencers
-  for insert using (public.is_jc_admin());
+create policy "jc_insert_influencers" on public.influencers
+  for insert with check (public.is_jc_admin());
+create policy "jc_delete_influencers" on public.influencers
+  for delete using (public.is_jc_admin());
 
+-- Ad accounts
 create policy "workspace_member_read_ad_accounts" on public.ad_accounts
   for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
-create policy "jc_manage_ad_accounts" on public.ad_accounts
-  for all using (public.is_jc_admin());
+create policy "jc_insert_ad_accounts" on public.ad_accounts
+  for insert with check (public.is_jc_admin());
+create policy "jc_update_ad_accounts" on public.ad_accounts
+  for update using (public.is_jc_admin());
+create policy "jc_delete_ad_accounts" on public.ad_accounts
+  for delete using (public.is_jc_admin());
 
+-- Billing records
 create policy "workspace_member_read_billing" on public.billing_records
   for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
-create policy "jc_manage_billing" on public.billing_records
-  for all using (public.is_jc_admin());
+create policy "jc_insert_billing" on public.billing_records
+  for insert with check (public.is_jc_admin());
+create policy "jc_update_billing" on public.billing_records
+  for update using (public.is_jc_admin());
+create policy "jc_delete_billing" on public.billing_records
+  for delete using (public.is_jc_admin());
 
+-- Web projects
 create policy "workspace_member_read_webs" on public.web_projects
   for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
-create policy "jc_manage_webs" on public.web_projects
-  for all using (public.is_jc_admin());
+create policy "jc_insert_webs" on public.web_projects
+  for insert with check (public.is_jc_admin());
+create policy "jc_update_webs" on public.web_projects
+  for update using (public.is_jc_admin());
+create policy "jc_delete_webs" on public.web_projects
+  for delete using (public.is_jc_admin());
 
+-- Extras
 create policy "workspace_member_read_extras" on public.extras
   for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
-create policy "jc_manage_extras" on public.extras
-  for all using (public.is_jc_admin());
+create policy "jc_insert_extras" on public.extras
+  for insert with check (public.is_jc_admin());
+create policy "jc_update_extras" on public.extras
+  for update using (public.is_jc_admin());
+create policy "jc_delete_extras" on public.extras
+  for delete using (public.is_jc_admin());
 
 -- ========================================
 -- SEED: Demo workspace for development
