@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner"
 const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "JC AIgency — Platform",
+  title: "JC AIgency — Partners Platform",
   description: "Plataforma colaborativa JC AIgency",
   icons: { icon: "/favicon.png", shortcut: "/favicon.png", apple: "/favicon.png" },
 }
