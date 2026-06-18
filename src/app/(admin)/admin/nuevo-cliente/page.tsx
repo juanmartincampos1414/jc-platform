@@ -42,9 +42,24 @@ export default function NuevoClientePage() {
       return
     }
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1000))
-    toast.success(`Workspace "${name}" creado. Se envió invitación a ${adminEmail}.`)
-    router.push("/admin/clientes")
+    try {
+      const res = await fetch("/api/admin/create-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, adminEmail, adminName, services, networks, fee, adsBudget }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || "Error al crear el cliente")
+        return
+      }
+      toast.success(`✅ Workspace "${name}" creado. Invitación enviada a ${adminEmail}.`)
+      router.push("/admin/clientes")
+    } catch {
+      toast.error("Error de conexión. Intentá de nuevo.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
