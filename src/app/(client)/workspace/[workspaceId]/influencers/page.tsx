@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle, XCircle, Users, TrendingUp, MessageCircle, ChevronRight } from "lucide-react"
+import { CheckCircle, XCircle, Users, TrendingUp, MessageCircle, ChevronRight, Sparkles, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 type InfluencerStatus =
@@ -97,6 +97,33 @@ export default function InfluencersPage() {
   }
 
   const needsAction = influencers.filter(i => i.status === "proposal_sent" || i.status === "content_review").length
+
+  const [fitLoading, setFitLoading] = useState(false)
+  const [fitResult, setFitResult] = useState<{
+    fit_score: number; fit_label: string; audience_match: string;
+    strengths: string[]; risks: string[]; fee_assessment: string; recommendation: string
+  } | null>(null)
+
+  async function analyzeFit(inf: Influencer) {
+    setFitLoading(true)
+    setFitResult(null)
+    try {
+      const res = await fetch("/api/ai/influencer-fit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          influencer: { name: inf.name, handle: inf.handle, network: inf.network, followers: inf.followers, engagementRate: inf.engagementRate, category: inf.category, feeProposal: inf.feeProposal, notes: inf.notes },
+          brand: "Marca de moda y lifestyle argentina, target femenino 25-40 años"
+        })
+      })
+      const data = await res.json()
+      setFitResult(data)
+    } catch {
+      toast.error("Error analizando fit con IA")
+    } finally {
+      setFitLoading(false)
+    }
+  }
 
   return (
     <div className="p-8 max-w-5xl">
@@ -269,6 +296,55 @@ export default function InfluencersPage() {
                     )
                   })}
                 </div>
+              </div>
+
+              {/* AI Fit Analysis */}
+              <div className="border border-dashed border-[#FFE600] rounded-xl p-4 bg-[#FFE600]/5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-[#FFE600]" />
+                    <p className="text-xs font-bold text-[#0A0A0A] uppercase tracking-wide">Análisis de Fit IA</p>
+                  </div>
+                  <button
+                    onClick={() => analyzeFit(selected)}
+                    disabled={fitLoading}
+                    className="flex items-center gap-1.5 text-xs bg-[#0A0A0A] text-white font-bold px-3 py-1.5 rounded-lg hover:bg-black transition disabled:opacity-50"
+                  >
+                    {fitLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                    {fitLoading ? "Analizando..." : "Analizar"}
+                  </button>
+                </div>
+                {fitResult && (
+                  <div className="space-y-3 mt-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`text-2xl font-black ${fitResult.fit_score >= 7 ? "text-green-600" : fitResult.fit_score >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                        {fitResult.fit_score}/10
+                      </div>
+                      <span className="text-xs font-bold text-[#0A0A0A]">{fitResult.fit_label}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">{fitResult.audience_match}</p>
+                    {fitResult.strengths?.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-green-700 uppercase mb-1">Fortalezas</p>
+                        {fitResult.strengths.map((s, i) => <p key={i} className="text-xs text-gray-600">✅ {s}</p>)}
+                      </div>
+                    )}
+                    {fitResult.risks?.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-red-600 uppercase mb-1">Riesgos</p>
+                        {fitResult.risks.map((r, i) => <p key={i} className="text-xs text-gray-600">⚠️ {r}</p>)}
+                      </div>
+                    )}
+                    <div className="bg-white rounded-lg p-3 border border-gray-100">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Fee</p>
+                      <p className="text-xs text-gray-700">{fitResult.fee_assessment}</p>
+                    </div>
+                    <div className="bg-[#0A0A0A] rounded-lg p-3">
+                      <p className="text-[10px] font-bold text-[#FFE600] uppercase mb-1">Recomendación</p>
+                      <p className="text-xs text-white leading-relaxed">{fitResult.recommendation}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}

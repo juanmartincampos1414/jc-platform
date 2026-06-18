@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle, XCircle, MessageCircle, Clock, ChevronLeft, ChevronRight, Send } from "lucide-react"
+import { CheckCircle, XCircle, MessageCircle, Clock, ChevronLeft, ChevronRight, Send, Sparkles, Loader2, Copy } from "lucide-react"
 import { toast } from "sonner"
 
 type Network = "instagram" | "facebook" | "tiktok" | "youtube"
@@ -77,6 +77,33 @@ export default function SocialMediaPage() {
   }
 
   const pendingCount = posts.filter(p => p.status === "pending").length
+
+  // AI copy generation
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiCopies, setAiCopies] = useState<{ style: string; copy: string }[]>([])
+
+  async function generateCopy(post: Post) {
+    setAiLoading(true)
+    setAiCopies([])
+    try {
+      const res = await fetch("/api/ai/social-copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ network: post.network, title: post.title, context: post.caption, brand: "JC AIgency cliente" })
+      })
+      const data = await res.json()
+      setAiCopies(data.options || [])
+    } catch {
+      toast.error("Error generando copies con IA")
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  function copyCopy(text: string) {
+    navigator.clipboard.writeText(text)
+    toast.success("Copy copiado al portapapeles")
+  }
 
   return (
     <div className="p-8">
@@ -211,6 +238,39 @@ export default function SocialMediaPage() {
                   <CheckCircle size={15} /> Aprobar ahora
                 </button>
               )}
+
+              {/* AI Copy Generator */}
+              <div className="border border-dashed border-[#FFE600] rounded-xl p-4 bg-[#FFE600]/5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-[#FFE600]" />
+                    <p className="text-xs font-bold text-[#0A0A0A] uppercase tracking-wide">Generar copy con IA</p>
+                  </div>
+                  <button
+                    onClick={() => generateCopy(selectedPost)}
+                    disabled={aiLoading}
+                    className="flex items-center gap-1.5 text-xs bg-[#0A0A0A] text-white font-bold px-3 py-1.5 rounded-lg hover:bg-black transition disabled:opacity-50"
+                  >
+                    {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                    {aiLoading ? "Generando..." : "Generar 3 opciones"}
+                  </button>
+                </div>
+                {aiCopies.length > 0 && (
+                  <div className="space-y-3 mt-3">
+                    {aiCopies.map((c, i) => (
+                      <div key={i} className="bg-white rounded-lg p-3 border border-gray-100">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-black text-[#FFE600] uppercase bg-[#0A0A0A] px-2 py-0.5 rounded-full">{c.style}</span>
+                          <button onClick={() => copyCopy(c.copy)} className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-700 transition">
+                            <Copy size={10} /> Copiar
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{c.copy}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Comments */}
               <div>

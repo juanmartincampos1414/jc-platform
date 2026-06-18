@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { TrendingUp, TrendingDown, Link, CheckCircle, AlertCircle, ExternalLink } from "lucide-react"
+import { TrendingUp, TrendingDown, Link, CheckCircle, AlertCircle, ExternalLink, Sparkles, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 type Platform = "meta" | "google" | "tiktok"
 
@@ -59,14 +60,52 @@ export default function AdsPage() {
   const campaigns = MOCK_CAMPAIGNS.filter(c => c.platform === activePlatform)
   const pct = metrics.budget > 0 ? Math.round((metrics.spend / metrics.budget) * 100) : 0
 
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiAnalysis, setAiAnalysis] = useState<{
+    summary: string; score: number; highlights: string[]; warnings: string[];
+    recommendations: { priority: string; action: string; expected_impact: string }[]
+  } | null>(null)
+
+  async function analyzeAds() {
+    setAiLoading(true)
+    setAiAnalysis(null)
+    try {
+      const res = await fetch("/api/ai/ads-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: activePlatform,
+          month: "Junio 2025",
+          budget: { approved: metrics.budget, executed: metrics.spend },
+          metrics,
+          campaigns,
+        })
+      })
+      const data = await res.json()
+      setAiAnalysis(data)
+    } catch {
+      toast.error("Error analizando con IA")
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   return (
     <div className="p-8 max-w-5xl">
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
         <div>
           <p className="text-sm text-gray-400 font-medium mb-1">Publicidad Digital</p>
           <h1 className="text-2xl font-black text-[#0A0A0A]">Resultados de Ads</h1>
           <p className="text-gray-400 text-sm mt-1">Junio 2025 · Actualizado hace 2 horas</p>
         </div>
+        <button
+          onClick={analyzeAds}
+          disabled={aiLoading || !account.connected}
+          className="flex items-center gap-2 bg-[#0A0A0A] text-white font-bold rounded-xl px-4 py-2.5 text-sm hover:bg-black transition disabled:opacity-40"
+        >
+          {aiLoading ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} className="text-[#FFE600]" />}
+          {aiLoading ? "Analizando..." : "Analizar con IA"}
+        </button>
       </div>
 
       {/* Platform tabs */}
@@ -194,6 +233,55 @@ export default function AdsPage() {
               )}
             </div>
           </div>
+          {/* AI Analysis panel */}
+          {aiAnalysis && (
+            <div className="mt-6 border-2 border-[#FFE600] rounded-2xl overflow-hidden">
+              <div className="bg-[#0A0A0A] px-5 py-4 flex items-center gap-2">
+                <Sparkles size={16} className="text-[#FFE600]" />
+                <h2 className="font-black text-white text-sm">Análisis IA — {PLATFORM_CONFIG[activePlatform].label}</h2>
+                <span className="ml-auto text-2xl font-black text-[#FFE600]">{aiAnalysis.score}/10</span>
+              </div>
+              <div className="p-5 bg-white space-y-4">
+                <p className="text-sm text-gray-700 leading-relaxed">{aiAnalysis.summary}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {aiAnalysis.highlights?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-green-700 uppercase tracking-wide mb-2">Puntos positivos</p>
+                      <div className="space-y-1">
+                        {aiAnalysis.highlights.map((h, i) => <p key={i} className="text-xs text-gray-600">✅ {h}</p>)}
+                      </div>
+                    </div>
+                  )}
+                  {aiAnalysis.warnings?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-2">Alertas</p>
+                      <div className="space-y-1">
+                        {aiAnalysis.warnings.map((w, i) => <p key={i} className="text-xs text-gray-600">⚠️ {w}</p>)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {aiAnalysis.recommendations?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-[#0A0A0A] uppercase tracking-wide mb-2">Recomendaciones</p>
+                    <div className="space-y-2">
+                      {aiAnalysis.recommendations.map((r, i) => (
+                        <div key={i} className="flex gap-3 bg-gray-50 rounded-xl p-3">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 h-fit mt-0.5 ${r.priority === "alta" ? "bg-red-100 text-red-700" : r.priority === "media" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"}`}>
+                            {r.priority.toUpperCase()}
+                          </span>
+                          <div>
+                            <p className="text-xs font-bold text-[#0A0A0A]">{r.action}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{r.expected_impact}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
