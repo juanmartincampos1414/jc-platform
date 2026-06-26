@@ -61,6 +61,10 @@ export async function POST(req: NextRequest) {
       frequency_type: "months",
       transaction_amount: config.price,
       currency_id: "ARS",
+      free_trial: {
+        frequency: 7,
+        frequency_type: "days",
+      },
     },
     payer_email: payerEmail,
     back_url: `${baseUrl}/workspace/${workspaceId}/jclaude?subscription=success`,
