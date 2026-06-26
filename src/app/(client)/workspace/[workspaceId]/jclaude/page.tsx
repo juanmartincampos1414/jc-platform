@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import {
   Sparkles, ChevronLeft, ChevronRight, CheckCircle, XCircle,
-  RefreshCw, Zap, Settings, Lock, Image, Clock, Calendar
+  RefreshCw, Zap, Settings, Lock, Image, Clock, Calendar, Link, Unlink
 } from "lucide-react"
 
 const PLAN_CONFIG = {
@@ -68,6 +68,19 @@ type Profile = {
   key_messages: string
 }
 
+type Connection = {
+  fb_page_id: string
+  fb_page_name: string
+  ig_account_id?: string
+  ig_username?: string
+}
+
+type SocialCredentials = {
+  fb_user_token?: string
+  token_expires_at?: string
+  connections?: Connection[]
+}
+
 const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
 const DAY_NAMES = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"]
 
@@ -83,6 +96,9 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
   const [publishing, setPublishing] = useState(false)
   const [publishMsg, setPublishMsg] = useState("")
   const [showSetup, setShowSetup] = useState(false)
+  const [showConnect, setShowConnect] = useState(false)
+  const [socialCreds, setSocialCreds] = useState<SocialCredentials>({})
+  const [oauthMsg, setOauthMsg] = useState("")
   const [profile, setProfile] = useState<Profile>({
     brand_name: "", industry: "", tone: "profesional y cercano",
     target_audience: "", key_messages: "",
@@ -101,11 +117,21 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
   useEffect(() => {
     params.then(async p => {
       setWorkspaceId(p.workspaceId)
-      const [subRes] = await Promise.all([
-        fetch(`/api/jclaude/subscription?workspaceId=${p.workspaceId}`)
+      const [subRes, profRes] = await Promise.all([
+        fetch(`/api/jclaude/subscription?workspaceId=${p.workspaceId}`),
+        fetch(`/api/jclaude/profile?workspaceId=${p.workspaceId}`),
       ])
       const subData = await subRes.json()
+      const profData = await profRes.json()
       setSubscription(subData.subscription)
+      if (profData.profile?.social_credentials) setSocialCreds(profData.profile.social_credentials)
+
+      // Check OAuth result from URL
+      const urlParams = new URLSearchParams(window.location.search)
+      const oauthResult = urlParams.get("oauth")
+      if (oauthResult === "success") setOauthMsg("✓ Cuenta conectada correctamente")
+      if (oauthResult === "error") setOauthMsg("✗ Error al conectar la cuenta")
+
       setLoading(false)
       if (subData.subscription) await loadPosts(p.workspaceId)
     })
@@ -184,6 +210,15 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
     } finally {
       setGeneratingImage(false)
     }
+  }
+
+  async function handleDisconnect() {
+    await fetch("/api/jclaude/oauth/disconnect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workspaceId }),
+    })
+    setSocialCreds({})
   }
 
   async function handlePublishNow(post: Post) {
@@ -293,6 +328,82 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
     )
   }
 
+  // ── Connect panel ─────────────────────────────────────────────────────────
+  if (showConnect) {
+    const connections = socialCreds.connections || []
+    const isConnected = connections.length > 0
+    return (
+      <div className="p-8 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Cuentas de redes sociales</h2>
+          <button onClick={() => setShowConnect(false)} className="text-sm text-gray-500 hover:text-gray-700">← Volver al calendario</button>
+        </div>
+
+        {oauthMsg && (
+          <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${oauthMsg.startsWith("✓") ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-600 border border-red-200"}`}>
+            {oauthMsg}
+          </div>
+        )}
+
+        {isConnected ? (
+          <div className="space-y-3 mb-6">
+            {connections.map(c => (
+              <div key={c.fb_page_id} className="border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-900">{c.fb_page_name}</div>
+                    <div className="text-sm text-gray-500 mt-0.5 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-500" /> Facebook Page conectada
+                      </div>
+                      {c.ig_username && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-purple-500" /> @{c.ig_username} (Instagram)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                </div>
+              </div>
+            ))}
+            <div className="text-xs text-gray-400">
+              Token expira: {socialCreds.token_expires_at ? new Date(socialCreds.token_expires_at).toLocaleDateString("es-AR") : "—"}
+            </div>
+          </div>
+        ) : (
+          <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center mb-6">
+            <Link className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm">No hay cuentas conectadas todavía.</p>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <a
+            href={`/api/jclaude/oauth/start?workspaceId=${workspaceId}`}
+            className="flex items-center justify-center gap-2 w-full py-3 bg-[#1877F2] text-white rounded-xl font-semibold text-sm hover:bg-blue-700 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            {isConnected ? "Reconectar con Facebook" : "Conectar con Facebook / Instagram"}
+          </a>
+
+          {isConnected && (
+            <button
+              onClick={handleDisconnect}
+              className="flex items-center justify-center gap-2 w-full py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors"
+            >
+              <Unlink className="w-4 h-4" /> Desconectar cuentas
+            </button>
+          )}
+        </div>
+
+        <p className="text-xs text-gray-400 mt-4 text-center">
+          Al conectar autorizás a JC AIgency a publicar contenido en tu nombre. Podés revocar el acceso en cualquier momento.
+        </p>
+      </div>
+    )
+  }
+
   // ── Main calendar view ────────────────────────────────────────────────────
   return (
     <div className="flex h-full">
@@ -316,6 +427,9 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setShowConnect(true)} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg transition-colors ${socialCreds.connections?.length ? "text-green-700 border-green-200 bg-green-50 hover:bg-green-100" : "text-gray-600 border-gray-200 hover:bg-gray-50"}`}>
+              <Link className="w-3.5 h-3.5" /> {socialCreds.connections?.length ? "Cuentas conectadas" : "Conectar cuentas"}
+            </button>
             <button onClick={() => setShowSetup(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
               <Settings className="w-3.5 h-3.5" /> Marca
             </button>
