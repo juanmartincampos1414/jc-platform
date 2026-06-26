@@ -36,7 +36,8 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/forgot-password')
-  const isPublicPath = pathname === '/' || isAuthPage
+  const isLegalPage = pathname.startsWith('/privacy') || pathname.startsWith('/terms') || pathname.startsWith('/data-deletion')
+  const isPublicPath = pathname === '/' || isAuthPage || isLegalPage
 
   const isDevPreview = pathname.startsWith('/workspace/ws-1')
   if (!user && !isPublicPath && !isDevPreview) {
