@@ -1,49 +1,42 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Sparkles, Settings, Zap, TrendingUp, CheckCircle, XCircle, Clock, RefreshCw, ChevronRight, Lock } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import {
+  Sparkles, ChevronLeft, ChevronRight, CheckCircle, XCircle,
+  RefreshCw, Zap, Settings, Lock, Image, Clock, Calendar
+} from "lucide-react"
 
-const PLANS = {
-  starter: {
-    name: "Starter",
-    price: "$200.000",
-    posts: 8 as number | string,
-    networks: 2 as number | string,
-    autopublish: false,
-    trending: false,
-    featured: false,
-    badge: "bg-gray-100 text-gray-700",
-  },
-  pro: {
-    name: "Pro",
-    price: "$300.000",
-    posts: 20 as number | string,
-    networks: 4 as number | string,
-    autopublish: true,
-    trending: false,
-    featured: true,
-    badge: "bg-[#FFE600] text-[#0A0A0A]",
-  },
-  enterprise: {
-    name: "Enterprise",
-    price: "$800.000",
-    posts: "Ilimitados" as number | string,
-    networks: "Todas" as number | string,
-    autopublish: true,
-    trending: true,
-    featured: false,
-    badge: "bg-purple-100 text-purple-800",
-  },
+const PLAN_CONFIG = {
+  starter: { name: "Starter", posts: 8, networks: 2, autopublish: false, trending: false },
+  pro: { name: "Pro", posts: 20, networks: 4, autopublish: true, trending: false },
+  enterprise: { name: "Enterprise", posts: 999, networks: 99, autopublish: true, trending: true },
 }
+type PlanKey = keyof typeof PLAN_CONFIG
 
-type PlanKey = keyof typeof PLANS
-
-const NETWORKS = [
-  { id: "instagram", label: "Instagram", color: "from-purple-500 to-pink-500" },
-  { id: "facebook", label: "Facebook", color: "from-blue-600 to-blue-700" },
-  { id: "tiktok", label: "TikTok", color: "from-gray-800 to-gray-900" },
-  { id: "linkedin", label: "LinkedIn", color: "from-blue-700 to-blue-800" },
-]
+const NETWORK_COLOR: Record<string, string> = {
+  instagram: "bg-purple-100 text-purple-800 border-purple-200",
+  facebook: "bg-blue-100 text-blue-800 border-blue-200",
+  tiktok: "bg-gray-100 text-gray-800 border-gray-300",
+  linkedin: "bg-sky-100 text-sky-800 border-sky-200",
+}
+const NETWORK_DOT: Record<string, string> = {
+  instagram: "bg-purple-500",
+  facebook: "bg-blue-600",
+  tiktok: "bg-gray-800",
+  linkedin: "bg-sky-600",
+}
+const TYPE_LABEL: Record<string, string> = { post: "Post", reel: "Reel", story: "Story" }
+const STATUS_COLOR: Record<string, string> = {
+  draft: "border-gray-200 bg-gray-50 text-gray-600",
+  approved: "border-green-200 bg-green-50 text-green-700",
+  rejected: "border-red-200 bg-red-50 text-red-600",
+  scheduled: "border-blue-200 bg-blue-50 text-blue-700",
+  published: "border-purple-200 bg-purple-50 text-purple-700",
+}
+const STATUS_LABEL: Record<string, string> = {
+  draft: "Borrador", approved: "Aprobado", rejected: "Rechazado",
+  scheduled: "Programado", published: "Publicado",
+}
 
 type Post = {
   id: string
@@ -54,121 +47,123 @@ type Post = {
   image_brief: string
   image_url?: string
   status: "draft" | "approved" | "rejected" | "scheduled" | "published"
-  created_at: string
+  scheduled_at: string
+  published_at?: string
 }
 
-type Tab = "plans" | "setup" | "generate" | "queue"
+type Subscription = {
+  plan: PlanKey
+  status: string
+  posts_limit: number
+  networks_limit: number
+  autopublish: boolean
+  trending: boolean
+}
+
+type Profile = {
+  brand_name: string
+  industry: string
+  tone: string
+  target_audience: string
+  key_messages: string
+}
+
+const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+const DAY_NAMES = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"]
 
 export default function JClaude({ params }: { params: Promise<{ workspaceId: string }> }) {
   const [workspaceId, setWorkspaceId] = useState("")
-  const [tab, setTab] = useState<Tab>("plans")
-  const [activePlan, setActivePlan] = useState<PlanKey | null>(null)
-  const [generating, setGenerating] = useState(false)
-  const [trending, setTrending] = useState(false)
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [loading, setLoading] = useState(true)
   const [posts, setPosts] = useState<Post[]>([])
-  const [trendingIdeas, setTrendingIdeas] = useState<{concept:string;why_trending:string;best_network:string;hook:string}[]>([])
-  const [selectedNetwork, setSelectedNetwork] = useState("instagram")
-  const [profile, setProfile] = useState({
-    brand_name: "",
-    industry: "",
-    tone: "profesional y cercano",
-    target_audience: "",
-    key_messages: "",
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null)
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [generating, setGenerating] = useState(false)
+  const [generatingImage, setGeneratingImage] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [publishMsg, setPublishMsg] = useState("")
+  const [showSetup, setShowSetup] = useState(false)
+  const [profile, setProfile] = useState<Profile>({
+    brand_name: "", industry: "", tone: "profesional y cercano",
+    target_audience: "", key_messages: "",
   })
-  const [subscribing, setSubscribing] = useState<PlanKey | null>(null)
-  const [publishing, setPublishing] = useState<string | null>(null)
-  const [publishResult, setPublishResult] = useState<Record<string, {success: boolean; message: string}>>({})
-  const [generatingImage, setGeneratingImage] = useState<string | null>(null)
 
+  const month = currentDate.getMonth() + 1
+  const year = currentDate.getFullYear()
+  const monthKey = `${year}-${String(month).padStart(2, "0")}`
+
+  const loadPosts = useCallback(async (wsId: string) => {
+    const res = await fetch(`/api/jclaude/posts?workspaceId=${wsId}&month=${monthKey}`)
+    const data = await res.json()
+    setPosts(data.posts || [])
+  }, [monthKey])
 
   useEffect(() => {
     params.then(async p => {
       setWorkspaceId(p.workspaceId)
-      const res = await fetch(`/api/jclaude/subscription?workspaceId=${p.workspaceId}`)
-      const data = await res.json()
-      if (data.subscription?.plan) {
-        setActivePlan(data.subscription.plan as PlanKey)
-      }
+      const [subRes] = await Promise.all([
+        fetch(`/api/jclaude/subscription?workspaceId=${p.workspaceId}`)
+      ])
+      const subData = await subRes.json()
+      setSubscription(subData.subscription)
+      setLoading(false)
+      if (subData.subscription) await loadPosts(p.workspaceId)
     })
-  }, [params])
+  }, [params, loadPosts])
 
-  async function handleSubscribe(plan: PlanKey) {
-    setSubscribing(plan)
-    try {
-      const res = await fetch("/api/mercadopago/create-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan,
-          workspaceId,
-          payerEmail: "cliente@example.com",
-        }),
-      })
-      const data = await res.json()
-      if (data.checkout_url) {
-        window.open(data.checkout_url, "_blank")
-        // Simulate activation in demo
-        if (data.demo) {
-          setActivePlan(plan)
-          setTab("setup")
-        }
-      }
-    } finally {
-      setSubscribing(null)
-    }
+  useEffect(() => {
+    if (workspaceId && subscription) loadPosts(workspaceId)
+  }, [monthKey, workspaceId, subscription, loadPosts])
+
+  // Calendar grid logic
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const firstDayOfMonth = new Date(year, month - 1, 1).getDay()
+  const startOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7
+
+  function getPostsForDay(day: number): Post[] {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    return posts.filter(p => p.scheduled_at?.startsWith(dateStr))
   }
 
-  async function handleGenerate(postType: "standard" | "trending" = "standard") {
-    if (!activePlan) return
+  function formatTime(iso: string) {
+    return iso ? iso.slice(11, 16) : ""
+  }
+
+  async function handleGenerateMonth() {
+    if (!subscription) return
     setGenerating(true)
     try {
-      const res = await fetch("/api/jclaude/generate", {
+      const res = await fetch("/api/jclaude/generate-month", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ network: selectedNetwork, postType, profile }),
+        body: JSON.stringify({ workspaceId, month, year, profile, subscription }),
       })
       const data = await res.json()
-      if (data.copy) {
-        const newPost: Post = {
-          id: Math.random().toString(36).slice(2),
-          network: selectedNetwork,
-          post_type: postType,
-          copy: data.copy,
-          hashtags: data.hashtags || "",
-          image_brief: data.image_brief || "",
-          status: "draft",
-          created_at: new Date().toISOString(),
-        }
-        setPosts(prev => [newPost, ...prev])
-        setTab("queue")
-      }
+      if (data.posts) setPosts(prev => {
+        const kept = prev.filter(p => !p.scheduled_at?.startsWith(`${year}-${String(month).padStart(2,"0")}`))
+        return [...kept, ...data.posts]
+      })
     } finally {
       setGenerating(false)
     }
   }
 
-  async function handleTrending() {
-    if (!activePlan || !PLANS[activePlan].trending) return
-    setTrending(true)
-    try {
-      const res = await fetch("/api/jclaude/trending", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ industry: profile.industry, networks: ["instagram", "tiktok"] }),
-      })
-      const data = await res.json()
-      setTrendingIdeas(data.ideas || [])
-    } finally {
-      setTrending(false)
+  async function handleUpdateStatus(post: Post, status: Post["status"]) {
+    const res = await fetch("/api/jclaude/posts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: post.id, status }),
+    })
+    const data = await res.json()
+    if (data.post) {
+      setPosts(prev => prev.map(p => p.id === post.id ? data.post : p))
+      setSelectedPost(data.post)
     }
   }
 
-  function updatePostStatus(id: string, status: Post["status"]) {
-    setPosts(prev => prev.map(p => p.id === id ? { ...p, status } : p))
-  }
-
   async function handleGenerateImage(post: Post) {
-    setGeneratingImage(post.id)
+    setGeneratingImage(true)
     try {
       const res = await fetch("/api/jclaude/generate-image", {
         method: "POST",
@@ -177,450 +172,412 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
       })
       const data = await res.json()
       if (data.image_url) {
-        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, image_url: data.image_url } : p))
+        await fetch("/api/jclaude/posts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: post.id, status: post.status, image_url: data.image_url }),
+        })
+        const updated = { ...post, image_url: data.image_url }
+        setPosts(prev => prev.map(p => p.id === post.id ? updated : p))
+        setSelectedPost(updated)
       }
     } finally {
-      setGeneratingImage(null)
+      setGeneratingImage(false)
     }
   }
 
-  async function handlePublish(post: Post) {
-    setPublishing(post.id)
-    setPublishResult(prev => ({ ...prev, [post.id]: { success: false, message: "Publicando..." } }))
+  async function handlePublishNow(post: Post) {
+    setPublishing(true)
+    setPublishMsg("")
     try {
       const res = await fetch("/api/jclaude/publish-meta", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          copy: post.copy,
-          hashtags: post.hashtags,
-          imageUrl: post.image_url || null,
-          network: post.network,
+          copy: post.copy, hashtags: post.hashtags,
+          imageUrl: post.image_url || null, network: post.network,
         }),
       })
       const data = await res.json()
       if (data.success) {
-        updatePostStatus(post.id, "published")
-        setPublishResult(prev => ({ ...prev, [post.id]: { success: true, message: `Publicado en ${post.network} · ID: ${data.post_id}` } }))
+        setPublishMsg(`Publicado · ID ${data.post_id}`)
+        await handleUpdateStatus(post, "published")
       } else {
-        setPublishResult(prev => ({ ...prev, [post.id]: { success: false, message: data.error || "Error al publicar" } }))
+        setPublishMsg(data.error || "Error al publicar")
       }
-    } catch {
-      setPublishResult(prev => ({ ...prev, [post.id]: { success: false, message: "Error de conexión" } }))
     } finally {
-      setPublishing(null)
+      setPublishing(false)
     }
   }
 
-  const statusBadge = (status: Post["status"]) => {
-    const map = {
-      draft: "bg-gray-100 text-gray-600",
-      approved: "bg-green-100 text-green-700",
-      rejected: "bg-red-100 text-red-700",
-      scheduled: "bg-blue-100 text-blue-700",
-      published: "bg-purple-100 text-purple-700",
-    }
-    return map[status]
+  const stats = {
+    total: posts.length,
+    approved: posts.filter(p => p.status === "approved").length,
+    published: posts.filter(p => p.status === "published").length,
+    draft: posts.filter(p => p.status === "draft").length,
   }
 
-  const statusLabel = (status: Post["status"]) => ({
-    draft: "Borrador",
-    approved: "Aprobado",
-    rejected: "Rechazado",
-    scheduled: "Programado",
-    published: "Publicado",
-  }[status])
+  // ── No plan ──────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <RefreshCw className="w-6 h-6 animate-spin text-gray-300" />
+      </div>
+    )
+  }
 
+  if (!subscription) {
+    return (
+      <div className="p-8 max-w-4xl mx-auto">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 rounded-xl bg-[#0A0A0A] flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-[#FFE600]" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">JClaude</h1>
+            <p className="text-sm text-gray-500">Calendario de contenido con IA · Publicación automática</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {(Object.entries(PLAN_CONFIG) as [PlanKey, typeof PLAN_CONFIG[PlanKey]][]).map(([key, plan]) => (
+            <div key={key} className={`border-2 rounded-2xl p-6 relative ${key === "pro" ? "border-[#FFE600]" : "border-gray-200"}`}>
+              {key === "pro" && <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FFE600] text-[#0A0A0A] text-xs font-bold px-3 py-0.5 rounded-full">Más popular</span>}
+              <div className="text-lg font-semibold mb-1">{plan.name}</div>
+              <ul className="space-y-1.5 text-sm mb-5 mt-3">
+                <li className="flex items-center gap-2 text-gray-700"><CheckCircle className="w-4 h-4 text-green-500" />{plan.posts === 999 ? "Posts ilimitados" : `${plan.posts} posts/mes`}</li>
+                <li className={`flex items-center gap-2 ${plan.autopublish ? "text-gray-700" : "text-gray-400"}`}>{plan.autopublish ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-gray-300" />}Autopublicación</li>
+                <li className={`flex items-center gap-2 ${plan.trending ? "text-gray-700" : "text-gray-400"}`}>{plan.trending ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-gray-300" />}Trending content IA</li>
+              </ul>
+              <button className={`w-full py-2.5 rounded-xl text-sm font-semibold ${key === "pro" ? "bg-[#FFE600] text-[#0A0A0A]" : "bg-[#0A0A0A] text-white"}`}>
+                Suscribirme
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Setup modal ───────────────────────────────────────────────────────────
+  if (showSetup) {
+    return (
+      <div className="p-8 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Perfil de marca</h2>
+          <button onClick={() => setShowSetup(false)} className="text-sm text-gray-500 hover:text-gray-700">← Volver al calendario</button>
+        </div>
+        <div className="space-y-4">
+          {([
+            { key: "brand_name", label: "Nombre de la marca", placeholder: "Ej: Flips Argentina" },
+            { key: "industry", label: "Rubro", placeholder: "Ej: Moda, Gastronomía, Tecnología..." },
+            { key: "tone", label: "Tono de comunicación", placeholder: "Ej: Joven y divertido, Profesional, Cercano" },
+            { key: "target_audience", label: "Audiencia objetivo", placeholder: "Ej: Mujeres 25-40 de CABA" },
+            { key: "key_messages", label: "Mensajes clave", placeholder: "Ej: Calidad, precio justo, experiencia única" },
+          ] as { key: keyof Profile; label: string; placeholder: string }[]).map(f => (
+            <div key={f.key}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{f.label}</label>
+              <input
+                type="text"
+                value={profile[f.key]}
+                onChange={e => setProfile(prev => ({ ...prev, [f.key]: e.target.value }))}
+                placeholder={f.placeholder}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFE600]"
+              />
+            </div>
+          ))}
+        </div>
+        <button onClick={() => setShowSetup(false)} className="mt-6 bg-[#0A0A0A] text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-800 transition-colors">
+          Guardar y volver
+        </button>
+      </div>
+    )
+  }
+
+  // ── Main calendar view ────────────────────────────────────────────────────
   return (
-    <div className="p-8 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-xl bg-[#0A0A0A] flex items-center justify-center">
-          <Sparkles className="w-5 h-5 text-[#FFE600]" />
+    <div className="flex h-full">
+      {/* Calendar column */}
+      <div className="flex-1 min-w-0 p-6 overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#0A0A0A] flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-[#FFE600]" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">JClaude</h1>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                subscription.plan === "enterprise" ? "bg-purple-100 text-purple-700" :
+                subscription.plan === "pro" ? "bg-[#FFE600] text-[#0A0A0A]" :
+                "bg-gray-100 text-gray-600"
+              }`}>
+                {PLAN_CONFIG[subscription.plan]?.name} activo
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowSetup(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              <Settings className="w-3.5 h-3.5" /> Marca
+            </button>
+            <button
+              onClick={handleGenerateMonth}
+              disabled={generating}
+              className="flex items-center gap-2 bg-[#FFE600] text-[#0A0A0A] px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-yellow-300 transition-colors disabled:opacity-60"
+            >
+              {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {generating ? "Generando..." : "Generar mes"}
+            </button>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">JClaude</h1>
-          <p className="text-sm text-gray-500">Generación de contenido con IA · Publicación automática</p>
+
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-3 mb-4">
+          {[
+            { label: "Total", value: stats.total, color: "text-gray-900" },
+            { label: "Borradores", value: stats.draft, color: "text-gray-500" },
+            { label: "Aprobados", value: stats.approved, color: "text-green-600" },
+            { label: "Publicados", value: stats.published, color: "text-purple-600" },
+          ].map(s => (
+            <div key={s.label} className="bg-gray-50 rounded-xl p-3">
+              <div className="text-xs text-gray-500 mb-0.5">{s.label}</div>
+              <div className={`text-2xl font-semibold ${s.color}`}>{s.value}</div>
+            </div>
+          ))}
         </div>
-        {activePlan && (
-          <span className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full ${PLANS[activePlan].badge}`}>
-            Plan {PLANS[activePlan].name} activo
-          </span>
+
+        {/* Month nav */}
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={() => setCurrentDate(new Date(year, month - 2, 1))} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          </button>
+          <span className="text-sm font-semibold text-gray-900">{MONTH_NAMES[month - 1]} {year}</span>
+          <button onClick={() => setCurrentDate(new Date(year, month, 1))} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          </button>
+        </div>
+
+        {/* Calendar grid */}
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          {/* Day names */}
+          <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
+            {DAY_NAMES.map(d => (
+              <div key={d} className="py-2 text-center text-xs font-medium text-gray-500">{d}</div>
+            ))}
+          </div>
+          {/* Cells */}
+          <div className="grid grid-cols-7">
+            {Array.from({ length: totalCells }).map((_, i) => {
+              const dayNum = i - startOffset + 1
+              const isValid = dayNum >= 1 && dayNum <= daysInMonth
+              const isToday = isValid && new Date().getDate() === dayNum &&
+                new Date().getMonth() + 1 === month && new Date().getFullYear() === year
+              const dayPosts = isValid ? getPostsForDay(dayNum) : []
+
+              return (
+                <div
+                  key={i}
+                  className={`border-b border-r border-gray-100 min-h-[88px] p-1.5 ${
+                    !isValid ? "bg-gray-50/50" : "bg-white"
+                  } ${i % 7 === 6 ? "border-r-0" : ""}`}
+                >
+                  {isValid && (
+                    <>
+                      <div className={`text-xs font-medium mb-1 w-5 h-5 flex items-center justify-center rounded-full ${
+                        isToday ? "bg-[#0A0A0A] text-white" : "text-gray-400"
+                      }`}>
+                        {dayNum}
+                      </div>
+                      <div className="space-y-0.5">
+                        {dayPosts.slice(0, 3).map(post => (
+                          <button
+                            key={post.id}
+                            onClick={() => setSelectedPost(selectedPost?.id === post.id ? null : post)}
+                            className={`w-full text-left text-[10px] px-1.5 py-0.5 rounded border flex items-center gap-1 truncate transition-all ${
+                              selectedPost?.id === post.id
+                                ? "ring-1 ring-[#0A0A0A]"
+                                : ""
+                            } ${STATUS_COLOR[post.status]}`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${NETWORK_DOT[post.network] || "bg-gray-400"}`} />
+                            <span className="truncate">{TYPE_LABEL[post.post_type]} · {formatTime(post.scheduled_at)}</span>
+                          </button>
+                        ))}
+                        {dayPosts.length > 3 && (
+                          <div className="text-[10px] text-gray-400 px-1">+{dayPosts.length - 3} más</div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-4 mt-3 flex-wrap">
+          {Object.entries(NETWORK_DOT).map(([net, cls]) => (
+            <div key={net} className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${cls}`} />
+              <span className="text-xs text-gray-500 capitalize">{net}</span>
+            </div>
+          ))}
+          <div className="w-px h-3 bg-gray-200 mx-1" />
+          {Object.entries(STATUS_LABEL).slice(0, 3).map(([s, label]) => (
+            <div key={s} className="flex items-center gap-1.5">
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_COLOR[s]}`}>{label}</span>
+            </div>
+          ))}
+        </div>
+
+        {generating && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800 flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            Claude está planificando tu calendario del mes... esto tarda unos segundos.
+          </div>
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-8 border-b border-gray-200">
-        {([
-          { key: "plans", label: "Planes" },
-          { key: "setup", label: "Configuración de marca" },
-          { key: "generate", label: "Generar contenido" },
-          { key: "queue", label: `Cola de posts${posts.length ? ` (${posts.length})` : ""}` },
-        ] as { key: Tab; label: string }[]).map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === t.key
-                ? "border-[#FFE600] text-gray-900"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* TAB: Plans */}
-      {tab === "plans" && (
-        <div>
-          <p className="text-gray-600 mb-6 text-sm">
-            Suscribite mensualmente vía MercadoPago. Podés cambiar de plan en cualquier momento.
-          </p>
-          <div className="grid grid-cols-3 gap-4">
-            {(Object.entries(PLANS) as [PlanKey, typeof PLANS[PlanKey]][]).map(([key, plan]) => (
-              <div
-                key={key}
-                className={`border-2 rounded-2xl p-6 relative ${
-                  plan.featured ? "border-[#FFE600]" : "border-gray-200"
-                } ${activePlan === key ? "ring-2 ring-green-400" : ""}`}
-              >
-                {plan.featured && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FFE600] text-[#0A0A0A] text-xs font-bold px-3 py-0.5 rounded-full">
-                    Más popular
-                  </span>
-                )}
-                {activePlan === key && (
-                  <span className="absolute -top-3 right-4 bg-green-500 text-white text-xs font-bold px-3 py-0.5 rounded-full">
-                    Activo
-                  </span>
-                )}
-                <div className="text-lg font-semibold text-gray-900 mb-1">{plan.name}</div>
-                <div className="text-3xl font-bold text-gray-900 mb-1">{plan.price}</div>
-                <div className="text-xs text-gray-500 mb-5">/mes · ARS</div>
-                <ul className="space-y-2 text-sm mb-6">
-                  <li className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                    {plan.posts} posts/mes
-                  </li>
-                  <li className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                    {plan.networks} {typeof plan.networks === "number" ? "redes" : "redes"}
-                  </li>
-                  <li className={`flex items-center gap-2 ${plan.autopublish ? "text-gray-700" : "text-gray-400"}`}>
-                    {plan.autopublish
-                      ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                      : <XCircle className="w-4 h-4 text-gray-300 shrink-0" />}
-                    Autopublicación
-                  </li>
-                  <li className={`flex items-center gap-2 ${plan.trending ? "text-gray-700" : "text-gray-400"}`}>
-                    {plan.trending
-                      ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                      : <XCircle className="w-4 h-4 text-gray-300 shrink-0" />}
-                    Trending content IA
-                  </li>
-                </ul>
-                <button
-                  onClick={() => handleSubscribe(key)}
-                  disabled={subscribing === key || activePlan === key}
-                  className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    activePlan === key
-                      ? "bg-green-100 text-green-700 cursor-default"
-                      : plan.featured
-                      ? "bg-[#FFE600] text-[#0A0A0A] hover:bg-yellow-300"
-                      : "bg-[#0A0A0A] text-white hover:bg-gray-800"
-                  }`}
-                >
-                  {subscribing === key ? "Redirigiendo..." : activePlan === key ? "Plan activo" : "Suscribirme"}
-                </button>
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 text-xs text-gray-400 text-center">
-            El pago se procesa de forma segura vía MercadoPago. Cancelás cuando querés.
-          </p>
-        </div>
-      )}
-
-      {/* TAB: Setup */}
-      {tab === "setup" && (
-        <div className="max-w-2xl">
-          <p className="text-gray-600 text-sm mb-6">
-            Completá el perfil de tu marca. Claude usa esta información para generar contenido alineado con tu voz.
-          </p>
-          <div className="space-y-4">
-            {[
-              { key: "brand_name", label: "Nombre de la marca", placeholder: "Ej: Café Central" },
-              { key: "industry", label: "Rubro", placeholder: "Ej: Gastronomía, Moda, Servicios financieros..." },
-              { key: "tone", label: "Tono de comunicación", placeholder: "Ej: Joven y divertido, Profesional y serio, Cercano y cálido" },
-              { key: "target_audience", label: "Audiencia objetivo", placeholder: "Ej: Mujeres 25-40 de CABA interesadas en lifestyle" },
-              { key: "key_messages", label: "Mensajes clave", placeholder: "Ej: Calidad artesanal, precio justo, experiencia única" },
-            ].map(field => (
-              <div key={field.key}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
-                <input
-                  type="text"
-                  value={profile[field.key as keyof typeof profile]}
-                  onChange={e => setProfile(prev => ({ ...prev, [field.key]: e.target.value }))}
-                  placeholder={field.placeholder}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFE600] focus:border-transparent"
-                />
-              </div>
-            ))}
-          </div>
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Redes conectadas</label>
-            <div className="flex flex-wrap gap-2">
-              {NETWORKS.map(n => (
-                <button
-                  key={n.id}
-                  onClick={() => {
-                    // toggle
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-700 hover:border-gray-400 transition-colors"
-                >
-                  <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${n.color}`} />
-                  {n.label}
-                </button>
-              ))}
+      {/* Post detail panel */}
+      {selectedPost && (
+        <div className="w-80 shrink-0 border-l border-gray-200 bg-white overflow-y-auto">
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${NETWORK_COLOR[selectedPost.network] || "bg-gray-100 text-gray-700"}`}>
+                {selectedPost.network}
+              </span>
+              <span className="text-xs text-gray-500">{TYPE_LABEL[selectedPost.post_type]}</span>
             </div>
-            <p className="mt-2 text-xs text-gray-400">
-              La autopublicación directa vía API estará disponible próximamente. Por ahora podés descargar el contenido aprobado.
-            </p>
+            <button onClick={() => setSelectedPost(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
           </div>
-          <button
-            onClick={() => setTab("generate")}
-            className="mt-6 flex items-center gap-2 bg-[#0A0A0A] text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-800 transition-colors"
-          >
-            Guardar y continuar <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
-      {/* TAB: Generate */}
-      {tab === "generate" && (
-        <div>
-          {!activePlan ? (
-            <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl">
-              <Lock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">Necesitás un plan activo para generar contenido</p>
-              <button onClick={() => setTab("plans")} className="mt-3 text-sm text-[#0A0A0A] underline underline-offset-2">
-                Ver planes
-              </button>
+          <div className="p-4 space-y-4">
+            {/* Date/time */}
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <Calendar className="w-3.5 h-3.5" />
+              {new Date(selectedPost.scheduled_at).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
+              <Clock className="w-3.5 h-3.5 ml-1" />
+              {formatTime(selectedPost.scheduled_at)}
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-8">
+
+            {/* Status */}
+            <span className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_COLOR[selectedPost.status]}`}>
+              {STATUS_LABEL[selectedPost.status]}
+            </span>
+
+            {/* Copy */}
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">Copy</div>
+              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{selectedPost.copy}</p>
+            </div>
+
+            {/* Hashtags */}
+            {selectedPost.hashtags && (
               <div>
-                <h3 className="font-semibold text-gray-900 mb-4">Generar post</h3>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Red social</label>
-                  <div className="flex flex-wrap gap-2">
-                    {NETWORKS.slice(0, PLANS[activePlan].networks === "Todas" ? 4 : Number(PLANS[activePlan].networks)).map(n => (
-                      <button
-                        key={n.id}
-                        onClick={() => setSelectedNetwork(n.id)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
-                          selectedNetwork === n.id
-                            ? "border-[#0A0A0A] bg-[#0A0A0A] text-white"
-                            : "border-gray-200 text-gray-700 hover:border-gray-400"
-                        }`}
-                      >
-                        {n.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-3">
+                <div className="text-xs font-medium text-gray-500 mb-1">Hashtags</div>
+                <p className="text-xs text-blue-600 leading-relaxed">{selectedPost.hashtags}</p>
+              </div>
+            )}
+
+            {/* Image */}
+            {selectedPost.image_url ? (
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-1">Imagen</div>
+                <div className="relative rounded-xl overflow-hidden border border-gray-200">
+                  <img src={selectedPost.image_url} alt="Imagen generada" className="w-full object-cover" />
                   <button
-                    onClick={() => handleGenerate("standard")}
-                    disabled={generating}
-                    className="w-full flex items-center justify-center gap-2 bg-[#FFE600] text-[#0A0A0A] py-3 rounded-xl font-semibold hover:bg-yellow-300 transition-colors disabled:opacity-60"
+                    onClick={() => handleGenerateImage(selectedPost)}
+                    disabled={generatingImage}
+                    className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-lg flex items-center gap-1 hover:bg-black/80"
                   >
-                    {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {generating ? "Generando..." : "Generar post con IA"}
-                  </button>
-                  {PLANS[activePlan].trending ? (
-                    <button
-                      onClick={handleTrending}
-                      disabled={trending}
-                      className="w-full flex items-center justify-center gap-2 bg-purple-600 text-white py-3 rounded-xl font-semibold hover:bg-purple-700 transition-colors disabled:opacity-60"
-                    >
-                      {trending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
-                      {trending ? "Analizando tendencias..." : "Ideas trending por rubro"}
-                    </button>
-                  ) : (
-                    <div className="w-full flex items-center justify-center gap-2 bg-gray-100 text-gray-400 py-3 rounded-xl text-sm">
-                      <Lock className="w-4 h-4" />
-                      Trending content · Plan Enterprise
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-4 p-4 bg-gray-50 rounded-xl text-xs text-gray-500 space-y-1">
-                  <p className="font-medium text-gray-700">Tu perfil de marca</p>
-                  <p>Marca: {profile.brand_name || <span className="italic">no configurado</span>}</p>
-                  <p>Rubro: {profile.industry || <span className="italic">no configurado</span>}</p>
-                  <p>Tono: {profile.tone}</p>
-                  <button onClick={() => setTab("setup")} className="text-[#0A0A0A] underline underline-offset-1 mt-1">
-                    Editar perfil
+                    <RefreshCw className="w-3 h-3" /> Regenerar
                   </button>
                 </div>
               </div>
-
+            ) : selectedPost.image_brief ? (
               <div>
-                {trendingIdeas.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">Ideas trending</h3>
-                    <div className="space-y-3">
-                      {trendingIdeas.map((idea, i) => (
-                        <div key={i} className="border border-purple-200 rounded-xl p-4 bg-purple-50">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-semibold text-purple-700 uppercase">{idea.best_network}</span>
-                            <TrendingUp className="w-3.5 h-3.5 text-purple-500" />
-                          </div>
-                          <p className="text-sm font-medium text-gray-900 mb-1">{idea.hook}</p>
-                          <p className="text-xs text-gray-500 mb-2">{idea.why_trending}</p>
-                          <button
-                            onClick={() => {
-                              setSelectedNetwork(idea.best_network)
-                              handleGenerate("trending")
-                            }}
-                            className="text-xs text-purple-700 font-medium underline underline-offset-1"
-                          >
-                            Generar este post
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                <div className="text-xs font-medium text-gray-500 mb-1">Brief de imagen</div>
+                <p className="text-xs text-gray-600 mb-2">{selectedPost.image_brief}</p>
+                <button
+                  onClick={() => handleGenerateImage(selectedPost)}
+                  disabled={generatingImage}
+                  className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-3 text-sm text-gray-500 hover:border-[#FFE600] hover:text-gray-700 transition-colors disabled:opacity-60"
+                >
+                  {generatingImage
+                    ? <><RefreshCw className="w-4 h-4 animate-spin" /> Generando...</>
+                    : <><Image className="w-4 h-4" /> Generar imagen con IA</>}
+                </button>
+              </div>
+            ) : null}
+
+            {/* Actions */}
+            {selectedPost.status === "draft" && (
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => handleUpdateStatus(selectedPost, "approved")}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-100 text-green-700 rounded-xl text-sm font-semibold hover:bg-green-200 transition-colors"
+                >
+                  <CheckCircle className="w-4 h-4" /> Aprobar
+                </button>
+                <button
+                  onClick={() => handleUpdateStatus(selectedPost, "rejected")}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors"
+                >
+                  <XCircle className="w-4 h-4" /> Rechazar
+                </button>
+              </div>
+            )}
+
+            {selectedPost.status === "approved" && (
+              <div className="space-y-2 pt-2">
+                <div className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Programado para publicarse automáticamente en el horario indicado.
+                </div>
+                {subscription.autopublish && (
+                  <button
+                    onClick={() => handlePublishNow(selectedPost)}
+                    disabled={publishing}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#FFE600] text-[#0A0A0A] rounded-xl text-sm font-semibold hover:bg-yellow-300 transition-colors disabled:opacity-60"
+                  >
+                    {publishing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                    {publishing ? "Publicando..." : "Publicar ahora"}
+                  </button>
+                )}
+                {!subscription.autopublish && (
+                  <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 rounded-lg p-2">
+                    <Lock className="w-3 h-3" /> Autopublicación disponible en plan Pro
                   </div>
                 )}
+                {publishMsg && (
+                  <p className={`text-xs ${publishMsg.startsWith("Error") ? "text-red-500" : "text-green-600"}`}>
+                    {publishMsg}
+                  </p>
+                )}
+                <button
+                  onClick={() => handleUpdateStatus(selectedPost, "draft")}
+                  className="w-full text-xs text-gray-400 hover:text-gray-600 py-1"
+                >
+                  Volver a borrador
+                </button>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
 
-      {/* TAB: Queue */}
-      {tab === "queue" && (
-        <div>
-          {posts.length === 0 ? (
-            <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl">
-              <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No hay posts generados todavía</p>
-              <button onClick={() => setTab("generate")} className="mt-3 text-sm text-[#0A0A0A] underline underline-offset-2">
-                Generar contenido
+            {selectedPost.status === "published" && (
+              <div className="flex items-center gap-2 bg-purple-50 rounded-xl p-3 text-sm text-purple-700">
+                <CheckCircle className="w-4 h-4" /> Publicado en {selectedPost.network}
+              </div>
+            )}
+
+            {selectedPost.status === "rejected" && (
+              <button
+                onClick={() => handleUpdateStatus(selectedPost, "draft")}
+                className="w-full py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Restablecer como borrador
               </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {posts.map(post => (
-                <div key={post.id} className="border border-gray-200 rounded-2xl p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-gray-500 uppercase">{post.network}</span>
-                      {post.post_type === "trending" && (
-                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Trending</span>
-                      )}
-                    </div>
-                    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusBadge(post.status)}`}>
-                      {statusLabel(post.status)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap mb-2">{post.copy}</p>
-                  {post.hashtags && (
-                    <p className="text-xs text-blue-600 mb-3">{post.hashtags}</p>
-                  )}
-                  {post.image_brief && (
-                    <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 mb-3">
-                      <span className="font-medium text-gray-700">Brief de imagen: </span>
-                      {post.image_brief}
-                    </div>
-                  )}
-
-                  {/* Imagen generada o botón para generarla */}
-                  {post.image_url ? (
-                    <div className="mb-3 relative rounded-xl overflow-hidden border border-gray-200">
-                      <img src={post.image_url} alt="Imagen generada" className="w-full object-cover max-h-64" />
-                      <button
-                        onClick={() => handleGenerateImage(post)}
-                        disabled={generatingImage === post.id}
-                        className="absolute top-2 right-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2.5 py-1.5 rounded-lg hover:bg-black/80 transition-colors"
-                      >
-                        <RefreshCw className="w-3 h-3" /> Regenerar
-                      </button>
-                    </div>
-                  ) : post.image_brief ? (
-                    <button
-                      onClick={() => handleGenerateImage(post)}
-                      disabled={generatingImage === post.id}
-                      className="w-full mb-3 flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-4 text-sm text-gray-500 hover:border-[#FFE600] hover:text-gray-700 transition-colors disabled:opacity-60"
-                    >
-                      {generatingImage === post.id
-                        ? <><RefreshCw className="w-4 h-4 animate-spin" /> Generando imagen con IA...</>
-                        : <><Sparkles className="w-4 h-4" /> Generar imagen con IA</>}
-                    </button>
-                  ) : null}
-
-                  {post.status === "draft" && (
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => updatePostStatus(post.id, "approved")}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-200 transition-colors"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Aprobar
-                      </button>
-                      <button
-                        onClick={() => updatePostStatus(post.id, "rejected")}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors"
-                      >
-                        <XCircle className="w-3.5 h-3.5" /> Rechazar
-                      </button>
-                      <button
-                        onClick={() => {
-                          const blob = new Blob([`${post.copy}\n\n${post.hashtags}`], { type: "text/plain" })
-                          const url = URL.createObjectURL(blob)
-                          const a = document.createElement("a")
-                          a.href = url
-                          a.download = `post-${post.network}-${post.id}.txt`
-                          a.click()
-                        }}
-                        className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-200 transition-colors"
-                      >
-                        Descargar
-                      </button>
-                    </div>
-                  )}
-                  {post.status === "approved" && (
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => updatePostStatus(post.id, "scheduled")}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-200 transition-colors"
-                      >
-                        <Clock className="w-3.5 h-3.5" /> Programar
-                      </button>
-                      {activePlan && PLANS[activePlan].autopublish && (
-                        <button
-                          onClick={() => handlePublish(post)}
-                          disabled={publishing === post.id}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-[#FFE600] text-[#0A0A0A] rounded-lg text-xs font-semibold hover:bg-yellow-300 transition-colors disabled:opacity-60"
-                        >
-                          {publishing === post.id
-                            ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            : <Zap className="w-3.5 h-3.5" />}
-                          {publishing === post.id ? "Publicando..." : "Publicar ahora"}
-                        </button>
-                      )}
-                      {publishResult[post.id] && (
-                        <p className={`mt-2 text-xs ${publishResult[post.id].success ? "text-green-600" : "text-red-500"}`}>
-                          {publishResult[post.id].message}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
