@@ -77,6 +77,7 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
   const [subscribing, setSubscribing] = useState<PlanKey | null>(null)
   const [publishing, setPublishing] = useState<string | null>(null)
   const [publishResult, setPublishResult] = useState<Record<string, {success: boolean; message: string}>>({})
+  const [generatingImage, setGeneratingImage] = useState<string | null>(null)
 
 
   useEffect(() => {
@@ -156,6 +157,23 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
 
   function updatePostStatus(id: string, status: Post["status"]) {
     setPosts(prev => prev.map(p => p.id === id ? { ...p, status } : p))
+  }
+
+  async function handleGenerateImage(post: Post) {
+    setGeneratingImage(post.id)
+    try {
+      const res = await fetch("/api/jclaude/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brief: post.image_brief, network: post.network }),
+      })
+      const data = await res.json()
+      if (data.image_url) {
+        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, image_url: data.image_url } : p))
+      }
+    } finally {
+      setGeneratingImage(null)
+    }
   }
 
   async function handlePublish(post: Post) {
@@ -510,6 +528,31 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
                       {post.image_brief}
                     </div>
                   )}
+
+                  {/* Imagen generada o botón para generarla */}
+                  {post.image_url ? (
+                    <div className="mb-3 relative rounded-xl overflow-hidden border border-gray-200">
+                      <img src={post.image_url} alt="Imagen generada" className="w-full object-cover max-h-64" />
+                      <button
+                        onClick={() => handleGenerateImage(post)}
+                        disabled={generatingImage === post.id}
+                        className="absolute top-2 right-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2.5 py-1.5 rounded-lg hover:bg-black/80 transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Regenerar
+                      </button>
+                    </div>
+                  ) : post.image_brief ? (
+                    <button
+                      onClick={() => handleGenerateImage(post)}
+                      disabled={generatingImage === post.id}
+                      className="w-full mb-3 flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-4 text-sm text-gray-500 hover:border-[#FFE600] hover:text-gray-700 transition-colors disabled:opacity-60"
+                    >
+                      {generatingImage === post.id
+                        ? <><RefreshCw className="w-4 h-4 animate-spin" /> Generando imagen con IA...</>
+                        : <><Sparkles className="w-4 h-4" /> Generar imagen con IA</>}
+                    </button>
+                  ) : null}
+
                   {post.status === "draft" && (
                     <div className="flex gap-2 mt-3">
                       <button
