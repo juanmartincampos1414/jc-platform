@@ -82,7 +82,14 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
 
 
   useEffect(() => {
-    params.then(p => setWorkspaceId(p.workspaceId))
+    params.then(async p => {
+      setWorkspaceId(p.workspaceId)
+      const res = await fetch(`/api/jclaude/subscription?workspaceId=${p.workspaceId}`)
+      const data = await res.json()
+      if (data.subscription?.plan) {
+        setActivePlan(data.subscription.plan as PlanKey)
+      }
+    })
   }, [params])
 
   async function handleSubscribe(plan: PlanKey) {
