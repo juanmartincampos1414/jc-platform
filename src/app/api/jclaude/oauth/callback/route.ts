@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
       `https://graph.facebook.com/v21.0/me/accounts?access_token=${longToken}`
     )
     const pagesData = await pagesRes.json()
+    console.log("OAUTH DEBUG pages:", JSON.stringify(pagesData))
     const pages = pagesData.data || []
 
     // 4. For each page, find Instagram Business Account
