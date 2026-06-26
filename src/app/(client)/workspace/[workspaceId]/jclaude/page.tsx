@@ -52,6 +52,7 @@ type Post = {
   copy: string
   hashtags: string
   image_brief: string
+  image_url?: string
   status: "draft" | "approved" | "rejected" | "scheduled" | "published"
   created_at: string
 }
