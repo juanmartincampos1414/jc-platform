@@ -4,9 +4,9 @@ const APP_ID = process.env.META_APP_ID!
 const REDIRECT_URI = `${process.env.NEXT_PUBLIC_APP_URL}/api/jclaude/oauth/callback`
 const SCOPES = [
   "instagram_basic",
-  "instagram_content_publishing",
   "pages_show_list",
   "pages_read_engagement",
+  "public_profile",
 ].join(",")
 
 export async function GET(req: NextRequest) {
