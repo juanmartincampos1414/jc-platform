@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import {
   FileText, Calendar, TrendingUp, Users, Globe,
   Star, Settings, LogOut, ChevronDown, LayoutDashboard,
-  CreditCard, Shield
+  CreditCard, Shield, Sparkles
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -124,6 +124,28 @@ export default function Sidebar({
             </Link>
           )
         })}
+
+        {/* JClaude premium */}
+        <div className="pt-3 mt-3 border-t border-white/5">
+          <Link
+            href={`${base}/jclaude`}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition relative",
+              pathname.startsWith(`${base}/jclaude`)
+                ? "bg-[#FFE600] text-[#0A0A0A]"
+                : "text-[#FFE600]/70 hover:text-[#FFE600] hover:bg-[#FFE600]/5"
+            )}
+          >
+            <Sparkles size={16} />
+            JClaude
+            <span className={cn(
+              "ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full",
+              pathname.startsWith(`${base}/jclaude`)
+                ? "bg-[#0A0A0A]/20 text-[#0A0A0A]"
+                : "bg-[#FFE600]/20 text-[#FFE600]"
+            )}>AI</span>
+          </Link>
+        </div>
 
         {/* Admin sections */}
         <div className="pt-4 mt-4 border-t border-white/5">

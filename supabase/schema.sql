@@ -292,3 +292,85 @@ create policy "jc_delete_extras" on public.extras
 -- ========================================
 -- insert into public.workspaces (name, slug, active_services, active_networks)
 -- values ('Cliente Demo', 'ws-1', '{"legales","social_media","ads","influencers","webs","extras"}', '{"instagram","facebook","tiktok","google"}');
+
+-- ========================================
+-- JCLAUDE — Premium AI Content Module
+-- ========================================
+
+-- Subscriptions (MercadoPago)
+create table if not exists public.jclaude_subscriptions (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid references public.workspaces(id) on delete cascade not null,
+  plan text not null check (plan in ('starter', 'pro', 'enterprise')),
+  status text not null default 'pending' check (status in ('pending', 'active', 'paused', 'cancelled')),
+  mp_preapproval_id text,
+  mp_subscription_id text,
+  posts_limit int not null default 8,
+  networks_limit int not null default 2,
+  autopublish bool not null default false,
+  trending bool not null default false,
+  current_period_start timestamptz,
+  current_period_end timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Brand profiles (setup de la marca por workspace)
+create table if not exists public.jclaude_profiles (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid references public.workspaces(id) on delete cascade not null unique,
+  brand_name text,
+  industry text,
+  tone text,
+  target_audience text,
+  key_messages text,
+  connected_networks jsonb default '[]',
+  social_credentials jsonb default '{}',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Generated posts queue
+create table if not exists public.jclaude_posts (
+  id uuid primary key default uuid_generate_v4(),
+  workspace_id uuid references public.workspaces(id) on delete cascade not null,
+  network text not null,
+  post_type text not null default 'standard' check (post_type in ('standard', 'trending')),
+  copy text not null,
+  hashtags text,
+  image_brief text,
+  image_url text,
+  status text not null default 'draft' check (status in ('draft', 'approved', 'rejected', 'scheduled', 'published')),
+  client_comment text,
+  scheduled_at timestamptz,
+  published_at timestamptz,
+  mp_external_ref text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- RLS
+alter table public.jclaude_subscriptions enable row level security;
+alter table public.jclaude_profiles enable row level security;
+alter table public.jclaude_posts enable row level security;
+
+create policy "ws_read_jclaude_sub" on public.jclaude_subscriptions
+  for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
+create policy "jc_manage_jclaude_sub" on public.jclaude_subscriptions
+  for all using (public.is_jc_admin()) with check (public.is_jc_admin());
+
+create policy "ws_read_jclaude_profile" on public.jclaude_profiles
+  for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
+create policy "ws_upsert_jclaude_profile" on public.jclaude_profiles
+  for insert with check (public.user_in_workspace(workspace_id));
+create policy "ws_update_jclaude_profile" on public.jclaude_profiles
+  for update using (public.user_in_workspace(workspace_id));
+
+create policy "ws_read_jclaude_posts" on public.jclaude_posts
+  for select using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
+create policy "ws_insert_jclaude_posts" on public.jclaude_posts
+  for insert with check (public.user_in_workspace(workspace_id) or public.is_jc_admin());
+create policy "ws_update_jclaude_posts" on public.jclaude_posts
+  for update using (public.user_in_workspace(workspace_id) or public.is_jc_admin());
+create policy "jc_delete_jclaude_posts" on public.jclaude_posts
+  for delete using (public.is_jc_admin());

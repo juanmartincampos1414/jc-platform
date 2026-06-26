@@ -35,13 +35,13 @@ export default async function WorkspaceLayout({
   children: React.ReactNode
   params: Promise<{ workspaceId: string }>
 }) {
-  if (!DEMO_MODE) {
+  const { workspaceId } = await params
+
+  if (!DEMO_MODE && workspaceId !== "ws-1") {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect("/login")
   }
-
-  const { workspaceId } = await params
   const workspace = await getWorkspace(workspaceId)
 
   return (

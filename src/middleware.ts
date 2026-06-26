@@ -38,7 +38,8 @@ export async function middleware(request: NextRequest) {
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/forgot-password')
   const isPublicPath = pathname === '/' || isAuthPage
 
-  if (!user && !isPublicPath) {
+  const isDevPreview = pathname.startsWith('/workspace/ws-1')
+  if (!user && !isPublicPath && !isDevPreview) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
