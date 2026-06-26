@@ -75,6 +75,9 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
     key_messages: "",
   })
   const [subscribing, setSubscribing] = useState<PlanKey | null>(null)
+  const [publishing, setPublishing] = useState<string | null>(null)
+  const [publishResult, setPublishResult] = useState<Record<string, {success: boolean; message: string}>>({})
+
 
   useEffect(() => {
     params.then(p => setWorkspaceId(p.workspaceId))
@@ -153,6 +156,34 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
 
   function updatePostStatus(id: string, status: Post["status"]) {
     setPosts(prev => prev.map(p => p.id === id ? { ...p, status } : p))
+  }
+
+  async function handlePublish(post: Post) {
+    setPublishing(post.id)
+    setPublishResult(prev => ({ ...prev, [post.id]: { success: false, message: "Publicando..." } }))
+    try {
+      const res = await fetch("/api/jclaude/publish-meta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          copy: post.copy,
+          hashtags: post.hashtags,
+          imageUrl: post.image_url || null,
+          network: post.network,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        updatePostStatus(post.id, "published")
+        setPublishResult(prev => ({ ...prev, [post.id]: { success: true, message: `Publicado en ${post.network} · ID: ${data.post_id}` } }))
+      } else {
+        setPublishResult(prev => ({ ...prev, [post.id]: { success: false, message: data.error || "Error al publicar" } }))
+      }
+    } catch {
+      setPublishResult(prev => ({ ...prev, [post.id]: { success: false, message: "Error de conexión" } }))
+    } finally {
+      setPublishing(null)
+    }
   }
 
   const statusBadge = (status: Post["status"]) => {
@@ -518,11 +549,20 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
                       </button>
                       {activePlan && PLANS[activePlan].autopublish && (
                         <button
-                          onClick={() => updatePostStatus(post.id, "published")}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-[#FFE600] text-[#0A0A0A] rounded-lg text-xs font-semibold hover:bg-yellow-300 transition-colors"
+                          onClick={() => handlePublish(post)}
+                          disabled={publishing === post.id}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-[#FFE600] text-[#0A0A0A] rounded-lg text-xs font-semibold hover:bg-yellow-300 transition-colors disabled:opacity-60"
                         >
-                          <Zap className="w-3.5 h-3.5" /> Publicar ahora
+                          {publishing === post.id
+                            ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            : <Zap className="w-3.5 h-3.5" />}
+                          {publishing === post.id ? "Publicando..." : "Publicar ahora"}
                         </button>
+                      )}
+                      {publishResult[post.id] && (
+                        <p className={`mt-2 text-xs ${publishResult[post.id].success ? "text-green-600" : "text-red-500"}`}>
+                          {publishResult[post.id].message}
+                        </p>
                       )}
                     </div>
                   )}
