@@ -5,7 +5,7 @@ const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN
 const PLAN_CONFIG = {
   starter: {
     title: "JClaude Starter",
-    price: 15000,
+    price: 200000,
     posts_limit: 8,
     networks_limit: 2,
     autopublish: false,
@@ -13,7 +13,7 @@ const PLAN_CONFIG = {
   },
   pro: {
     title: "JClaude Pro",
-    price: 35000,
+    price: 300000,
     posts_limit: 20,
     networks_limit: 4,
     autopublish: true,
@@ -21,7 +21,7 @@ const PLAN_CONFIG = {
   },
   enterprise: {
     title: "JClaude Enterprise",
-    price: 80000,
+    price: 800000,
     posts_limit: 999,
     networks_limit: 99,
     autopublish: true,

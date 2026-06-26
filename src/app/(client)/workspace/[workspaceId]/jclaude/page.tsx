@@ -6,7 +6,7 @@ import { Sparkles, Settings, Zap, TrendingUp, CheckCircle, XCircle, Clock, Refre
 const PLANS = {
   starter: {
     name: "Starter",
-    price: "$15.000",
+    price: "$200.000",
     posts: 8 as number | string,
     networks: 2 as number | string,
     autopublish: false,
@@ -16,7 +16,7 @@ const PLANS = {
   },
   pro: {
     name: "Pro",
-    price: "$35.000",
+    price: "$300.000",
     posts: 20 as number | string,
     networks: 4 as number | string,
     autopublish: true,
@@ -26,7 +26,7 @@ const PLANS = {
   },
   enterprise: {
     name: "Enterprise",
-    price: "$80.000",
+    price: "$800.000",
     posts: "Ilimitados" as number | string,
     networks: "Todas" as number | string,
     autopublish: true,
