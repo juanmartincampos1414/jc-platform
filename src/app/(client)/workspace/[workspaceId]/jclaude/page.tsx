@@ -273,6 +273,10 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
             <p className="text-sm text-gray-500">Calendario de contenido con IA · Publicación automática</p>
           </div>
         </div>
+        <div className="mb-6 flex items-center justify-center gap-2 bg-green-50 border border-green-200 rounded-xl py-2.5 px-4">
+          <CheckCircle className="w-4 h-4 text-green-500" />
+          <span className="text-sm font-medium text-green-700">7 días de prueba gratis · Sin tarjeta requerida hasta el día 8</span>
+        </div>
         <div className="grid grid-cols-3 gap-4">
           {(Object.entries(PLAN_CONFIG) as [PlanKey, typeof PLAN_CONFIG[PlanKey]][]).map(([key, plan]) => (
             <div key={key} className={`border-2 rounded-2xl p-6 relative ${key === "pro" ? "border-[#FFE600]" : "border-gray-200"}`}>
@@ -282,9 +286,10 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
                 <li className="flex items-center gap-2 text-gray-700"><CheckCircle className="w-4 h-4 text-green-500" />{plan.posts === 999 ? "Posts ilimitados" : `${plan.posts} posts/mes`}</li>
                 <li className={`flex items-center gap-2 ${plan.autopublish ? "text-gray-700" : "text-gray-400"}`}>{plan.autopublish ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-gray-300" />}Autopublicación</li>
                 <li className={`flex items-center gap-2 ${plan.trending ? "text-gray-700" : "text-gray-400"}`}>{plan.trending ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-gray-300" />}Trending content IA</li>
+                <li className="flex items-center gap-2 text-green-600"><CheckCircle className="w-4 h-4 text-green-500" />7 días gratis</li>
               </ul>
               <button className={`w-full py-2.5 rounded-xl text-sm font-semibold ${key === "pro" ? "bg-[#FFE600] text-[#0A0A0A]" : "bg-[#0A0A0A] text-white"}`}>
-                Suscribirme
+                Probar gratis 7 días
               </button>
             </div>
           ))}
