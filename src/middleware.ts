@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
 
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/forgot-password')
   const isLegalPage = pathname.startsWith('/privacy') || pathname.startsWith('/terms') || pathname.startsWith('/data-deletion')
-  const isWebhook = pathname.startsWith('/api/meta/webhook') || pathname.startsWith('/api/mercadopago/webhook') || pathname.startsWith('/api/jclaude/oauth/callback')
+  const isWebhook = pathname.startsWith('/api/meta/webhook') || pathname.startsWith('/api/mercadopago/webhook') || pathname.startsWith('/api/jclaude/oauth/callback') || pathname.startsWith('/api/auth/register')
   const isPublicPath = pathname === '/' || isAuthPage || isLegalPage || isWebhook
 
   const isDevPreview = pathname.startsWith('/workspace/ws-1')
