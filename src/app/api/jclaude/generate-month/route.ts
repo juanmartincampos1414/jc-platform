@@ -99,19 +99,14 @@ Respondé SOLO con JSON válido, sin texto antes ni después:
 
   let plan: { date: string; time: string; network: string; post_type: string; copy: string; hashtags: string; image_brief: string }[] = []
   try {
-    // Strip markdown code blocks if present
-    const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim()
-    // Try wrapper object
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0])
-      plan = parsed?.posts || parsed?.calendar || []
-    }
-    // Fallback: try array directly
-    if (plan.length === 0) {
-      const arrayMatch = cleaned.match(/\[[\s\S]*\]/)
-      if (arrayMatch) plan = JSON.parse(arrayMatch[0])
-    }
+    // Strip markdown fences
+    let cleaned = text
+    const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (fenceMatch) cleaned = fenceMatch[1].trim()
+    else cleaned = text.trim()
+
+    const parsed = JSON.parse(cleaned)
+    plan = parsed?.posts || parsed?.calendar || (Array.isArray(parsed) ? parsed : [])
   } catch (e) {
     console.error("Parse error:", e, "Raw:", text.slice(0, 300))
     return NextResponse.json({ error: "Parse error from AI", raw: text.slice(0, 300) }, { status: 500 })
