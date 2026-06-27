@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 4000,
+    max_tokens: 8000,
     messages: [{
       role: "user",
       content: `Sos un experto en marketing digital para Argentina. Tenés que crear el calendario de contenido completo para ${monthName} ${year}.
@@ -99,17 +99,17 @@ Respondé SOLO con JSON válido, sin texto antes ni después:
 
   let plan: { date: string; time: string; network: string; post_type: string; copy: string; hashtags: string; image_brief: string }[] = []
   try {
-    // Strip markdown fences
-    let cleaned = text
-    const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (fenceMatch) cleaned = fenceMatch[1].trim()
-    else cleaned = text.trim()
+    // Strip opening and closing markdown fences unconditionally
+    let cleaned = text.trim()
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "")
+    cleaned = cleaned.replace(/\s*```\s*$/, "")
+    cleaned = cleaned.trim()
 
     const parsed = JSON.parse(cleaned)
     plan = parsed?.posts || parsed?.calendar || (Array.isArray(parsed) ? parsed : [])
   } catch (e) {
-    console.error("Parse error:", e, "Raw:", text.slice(0, 300))
-    return NextResponse.json({ error: "Parse error from AI", raw: text.slice(0, 300) }, { status: 500 })
+    console.error("Parse error:", e, "Raw:", text.slice(0, 500))
+    return NextResponse.json({ error: "Parse error from AI", raw: text.slice(0, 500) }, { status: 500 })
   }
 
   if (plan.length === 0) {
