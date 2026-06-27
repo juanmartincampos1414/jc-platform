@@ -99,15 +99,25 @@ Respondé SOLO con JSON válido, sin texto antes ni después:
 
   let plan: { date: string; time: string; network: string; post_type: string; copy: string; hashtags: string; image_brief: string }[] = []
   try {
+    // Try to extract JSON array directly or from wrapper object
     const jsonMatch = text.match(/\{[\s\S]*\}/)
-    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null
-    plan = parsed?.posts || []
-  } catch {
-    return NextResponse.json({ error: "Parse error from AI", raw: text }, { status: 500 })
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0])
+      plan = parsed?.posts || parsed?.calendar || []
+    }
+    // Fallback: try to find array directly
+    if (plan.length === 0) {
+      const arrayMatch = text.match(/\[[\s\S]*\]/)
+      if (arrayMatch) plan = JSON.parse(arrayMatch[0])
+    }
+  } catch (e) {
+    console.error("Parse error:", e, "Raw text:", text.slice(0, 500))
+    return NextResponse.json({ error: "Parse error from AI", raw: text.slice(0, 500) }, { status: 500 })
   }
 
   if (plan.length === 0) {
-    return NextResponse.json({ error: "No posts generated" }, { status: 500 })
+    console.error("No posts in response:", text.slice(0, 500))
+    return NextResponse.json({ error: "No posts generated", raw: text.slice(0, 200) }, { status: 500 })
   }
 
   // Save to Supabase
