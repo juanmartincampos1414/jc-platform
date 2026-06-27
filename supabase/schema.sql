@@ -335,7 +335,7 @@ create table if not exists public.jclaude_posts (
   id uuid primary key default uuid_generate_v4(),
   workspace_id uuid references public.workspaces(id) on delete cascade not null,
   network text not null,
-  post_type text not null default 'standard' check (post_type in ('standard', 'trending')),
+  post_type text not null default 'post' check (post_type in ('post', 'reel', 'story', 'standard', 'trending')),
   copy text not null,
   hashtags text,
   image_brief text,

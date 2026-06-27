@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/forgot-password')
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password')
   const isLegalPage = pathname.startsWith('/privacy') || pathname.startsWith('/terms') || pathname.startsWith('/data-deletion')
   const isWebhook = pathname.startsWith('/api/meta/webhook') || pathname.startsWith('/api/mercadopago/webhook') || pathname.startsWith('/api/jclaude/oauth/callback') || pathname.startsWith('/api/auth/register')
   const isPublicPath = pathname === '/' || isAuthPage || isLegalPage || isWebhook
