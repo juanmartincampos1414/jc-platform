@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     .gte("scheduled_at", startDate)
     .lte("scheduled_at", endDate + "T23:59:59")
 
-  const postsLimit = subscription?.posts_limit || 8
+  const postsLimit = Math.min(subscription?.posts_limit || 8, 30)
   const networksAvailable = ["instagram", "facebook"].slice(0, subscription?.networks_limit || 2)
   const hasTrending = subscription?.trending || false
 
