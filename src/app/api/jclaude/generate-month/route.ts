@@ -99,25 +99,26 @@ Respondé SOLO con JSON válido, sin texto antes ni después:
 
   let plan: { date: string; time: string; network: string; post_type: string; copy: string; hashtags: string; image_brief: string }[] = []
   try {
-    // Try to extract JSON array directly or from wrapper object
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    // Strip markdown code blocks if present
+    const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim()
+    // Try wrapper object
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0])
       plan = parsed?.posts || parsed?.calendar || []
     }
-    // Fallback: try to find array directly
+    // Fallback: try array directly
     if (plan.length === 0) {
-      const arrayMatch = text.match(/\[[\s\S]*\]/)
+      const arrayMatch = cleaned.match(/\[[\s\S]*\]/)
       if (arrayMatch) plan = JSON.parse(arrayMatch[0])
     }
   } catch (e) {
-    console.error("Parse error:", e, "Raw text:", text.slice(0, 500))
-    return NextResponse.json({ error: "Parse error from AI", raw: text.slice(0, 500) }, { status: 500 })
+    console.error("Parse error:", e, "Raw:", text.slice(0, 300))
+    return NextResponse.json({ error: "Parse error from AI", raw: text.slice(0, 300) }, { status: 500 })
   }
 
   if (plan.length === 0) {
-    console.error("No posts in response:", text.slice(0, 500))
-    return NextResponse.json({ error: "No posts generated", raw: text.slice(0, 200) }, { status: 500 })
+    return NextResponse.json({ error: "No posts generated", raw: text.slice(0, 300) }, { status: 500 })
   }
 
   // Save to Supabase
