@@ -168,7 +168,7 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
       })
       const data = await res.json()
       if (!res.ok || data.error) {
-        toast.error(data.error || "Error al generar el calendario")
+        toast.error(`${data.error || "Error"}${data.raw ? ": " + data.raw.slice(0, 100) : ""}`)
         return
       }
       if (data.posts) {
