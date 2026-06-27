@@ -5,6 +5,7 @@ import {
   Sparkles, ChevronLeft, ChevronRight, CheckCircle, XCircle,
   RefreshCw, Zap, Settings, Lock, Image, Clock, Calendar, Link, Unlink
 } from "lucide-react"
+import { toast } from "sonner"
 
 const PLAN_CONFIG = {
   starter: { name: "Starter", posts: 8, networks: 2, autopublish: false, trending: false },
@@ -166,10 +167,19 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
         body: JSON.stringify({ workspaceId, month, year, profile, subscription }),
       })
       const data = await res.json()
-      if (data.posts) setPosts(prev => {
-        const kept = prev.filter(p => !p.scheduled_at?.startsWith(`${year}-${String(month).padStart(2,"0")}`))
-        return [...kept, ...data.posts]
-      })
+      if (!res.ok || data.error) {
+        toast.error(data.error || "Error al generar el calendario")
+        return
+      }
+      if (data.posts) {
+        setPosts(prev => {
+          const kept = prev.filter(p => !p.scheduled_at?.startsWith(`${year}-${String(month).padStart(2,"0")}`))
+          return [...kept, ...data.posts]
+        })
+        toast.success(`${data.posts.length} posts generados`)
+      } else {
+        toast.error("No se generaron posts")
+      }
     } finally {
       setGenerating(false)
     }
