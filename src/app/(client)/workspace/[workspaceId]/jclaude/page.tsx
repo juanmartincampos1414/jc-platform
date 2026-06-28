@@ -72,6 +72,7 @@ type Profile = {
 type Connection = {
   fb_page_id: string
   fb_page_name: string
+  fb_page_token?: string
   ig_account_id?: string
   ig_username?: string
 }
@@ -235,12 +236,21 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
     setPublishing(true)
     setPublishMsg("")
     try {
+      // Buscar la conexión correcta para la red del post
+      const connections = socialCreds.connections || []
+      const conn = connections.find((c: Connection) =>
+        post.network === "instagram" ? !!c.ig_account_id : !!c.fb_page_id
+      ) || connections[0]
+
       const res = await fetch("/api/jclaude/publish-meta", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           copy: post.copy, hashtags: post.hashtags,
           imageUrl: post.image_url || null, network: post.network,
+          igAccountId: conn?.ig_account_id,
+          pageId: conn?.fb_page_id,
+          pageAccessToken: conn?.fb_page_token,
         }),
       })
       const data = await res.json()

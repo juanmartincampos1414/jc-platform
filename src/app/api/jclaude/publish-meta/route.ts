@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const IG_ACCOUNT_ID = process.env.META_IG_ACCOUNT_ID
-const PAGE_ACCESS_TOKEN = process.env.META_PAGE_ACCESS_TOKEN
-const PAGE_ID = process.env.META_PAGE_ID
+const IG_ACCOUNT_ID_ENV = process.env.META_IG_ACCOUNT_ID
+const PAGE_ACCESS_TOKEN_ENV = process.env.META_PAGE_ACCESS_TOKEN
+const PAGE_ID_ENV = process.env.META_PAGE_ID
 
 export async function POST(req: NextRequest) {
-  const { copy, hashtags, imageUrl, network } = await req.json()
+  const { copy, hashtags, imageUrl, network, igAccountId, pageId, pageAccessToken } = await req.json()
 
-  if (!IG_ACCOUNT_ID || !PAGE_ACCESS_TOKEN) {
+  // Usar credenciales dinámicas del OAuth si vienen, sino fallback a env
+  const resolvedIgAccountId = igAccountId || IG_ACCOUNT_ID_ENV
+  const resolvedPageToken   = pageAccessToken || PAGE_ACCESS_TOKEN_ENV
+  const resolvedPageId      = pageId || PAGE_ID_ENV
+
+  if (!resolvedPageToken) {
     return NextResponse.json({ error: "Meta credentials not configured" }, { status: 500 })
   }
 
@@ -15,9 +20,12 @@ export async function POST(req: NextRequest) {
 
   try {
     if (network === "instagram") {
-      return await publishInstagram(caption, imageUrl)
+      if (!resolvedIgAccountId) {
+        return NextResponse.json({ error: "No hay cuenta de Instagram conectada" }, { status: 400 })
+      }
+      return await publishInstagram(caption, imageUrl, resolvedIgAccountId, resolvedPageToken)
     } else if (network === "facebook") {
-      return await publishFacebook(caption, imageUrl)
+      return await publishFacebook(caption, imageUrl, resolvedPageId, resolvedPageToken)
     }
     return NextResponse.json({ error: "Unsupported network" }, { status: 400 })
   } catch (err) {
@@ -26,79 +34,58 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function publishInstagram(caption: string, imageUrl?: string) {
+async function publishInstagram(caption: string, imageUrl: string | undefined, igAccountId: string, token: string) {
   if (imageUrl) {
-    // Post con imagen: primero crear el container, después publicar
     const containerRes = await fetch(
-      `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}/media`,
+      `https://graph.facebook.com/v21.0/${igAccountId}/media`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image_url: imageUrl,
-          caption,
-          access_token: PAGE_ACCESS_TOKEN,
-        }),
+        body: JSON.stringify({ image_url: imageUrl, caption, access_token: token }),
       }
     )
     const container = await containerRes.json()
-
     if (!containerRes.ok || container.error) {
       throw new Error(container.error?.message || "Error creating media container")
     }
 
-    // Publicar el container
     const publishRes = await fetch(
-      `https://graph.facebook.com/v21.0/${IG_ACCOUNT_ID}/media_publish`,
+      `https://graph.facebook.com/v21.0/${igAccountId}/media_publish`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          creation_id: container.id,
-          access_token: PAGE_ACCESS_TOKEN,
-        }),
+        body: JSON.stringify({ creation_id: container.id, access_token: token }),
       }
     )
     const published = await publishRes.json()
-
     if (!publishRes.ok || published.error) {
       throw new Error(published.error?.message || "Error publishing media")
     }
 
     return NextResponse.json({ success: true, post_id: published.id, network: "instagram" })
   } else {
-    // Post solo texto (carrusel o story de texto — Instagram no permite posts sin imagen)
-    // En este caso publicamos en Facebook y devolvemos aviso
     return NextResponse.json({
       success: false,
-      error: "Instagram requiere una imagen para publicar. El post se publicará en Facebook.",
+      error: "Instagram requiere una imagen para publicar.",
       fallback: "facebook",
     })
   }
 }
 
-async function publishFacebook(caption: string, imageUrl?: string) {
-  const body: Record<string, string> = {
-    message: caption,
-    access_token: PAGE_ACCESS_TOKEN!,
-  }
-
-  if (imageUrl) {
-    body.url = imageUrl
-  }
+async function publishFacebook(caption: string, imageUrl: string | undefined, pageId: string | undefined, token: string) {
+  const body: Record<string, string> = { message: caption, access_token: token }
+  if (imageUrl) body.url = imageUrl
 
   const endpoint = imageUrl
-    ? `https://graph.facebook.com/v21.0/${PAGE_ID}/photos`
-    : `https://graph.facebook.com/v21.0/${PAGE_ID}/feed`
+    ? `https://graph.facebook.com/v21.0/${pageId}/photos`
+    : `https://graph.facebook.com/v21.0/${pageId}/feed`
 
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
-
   const data = await res.json()
-
   if (!res.ok || data.error) {
     throw new Error(data.error?.message || "Error publishing to Facebook")
   }
