@@ -325,12 +325,16 @@ Respondé ÚNICAMENTE con este JSON, sin texto adicional, sin markdown:
     }),
   ])
 
-  // ── 10. Knowledge Extraction (fire-and-forget) ───────────────
-  // Después de cada generación, actualizar el Knowledge del brand
-  // para que la próxima generación sea más informada
+  // ── 10. Knowledge Extraction + Decision Generation ───────────
+  // Awaited: en Vercel serverless las promesas fire-and-forget mueren al retornar.
+  // El pipeline completo debe terminar antes de devolver la respuesta.
   if (brand) {
-    extractAndStoreKnowledge(supabase, workspaceId, brand.id, campaign?.id)
-      .catch(err => console.error("[generate-month] Knowledge extraction error:", err))
+    try {
+      await extractAndStoreKnowledge(supabase, workspaceId, brand.id, campaign?.id)
+    } catch (err) {
+      console.error("[generate-month] Knowledge/Decision pipeline error:", err)
+      // No bloquea la respuesta — el contenido ya fue generado
+    }
   }
 
   return NextResponse.json({ posts: inserted, count: inserted?.length })
