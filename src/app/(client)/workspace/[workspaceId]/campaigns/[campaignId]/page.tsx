@@ -6,7 +6,7 @@ import {
   ArrowLeft, Layers, Brain, Zap, Activity,
   CheckCircle2, Clock, XCircle, AlertCircle,
   Image, Video, BookOpen,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Lightbulb
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -22,6 +22,7 @@ type CampaignData = {
   assets: Asset[]
   decisions: Decision[]
   knowledge: Knowledge[]
+  recommendations: Recommendation[]
   activity: DomainEvent[]
 }
 
@@ -43,8 +44,14 @@ type Knowledge = {
   content: string; confidence: number; created_at: string
 }
 
+type Recommendation = {
+  id: string; title: string; body: string
+  action_type: string; action_detail: Record<string, unknown>
+  status: string; decision_id: string | null; created_at: string
+}
+
 type DomainEvent = {
-  id: string; event_type: string; entity_type: string
+  id: string; event: string; entity_type: string
   actor_type: string; metadata: Record<string, unknown>; created_at: string
 }
 
@@ -158,7 +165,7 @@ export default function CampaignDetailPage() {
     )
   }
 
-  const { campaign, assets, decisions, knowledge, activity } = data
+  const { campaign, assets, decisions, knowledge, recommendations, activity } = data
 
   // Asset stats
   const assetByStatus = assets.reduce<Record<string, number>>((acc, a) => {
@@ -212,9 +219,9 @@ export default function CampaignDetailPage() {
         {/* Summary counters */}
         <div className="grid grid-cols-3 gap-3 mt-4">
           {[
-            { label: "Assets",    value: assets.length,    color: "text-blue-600" },
-            { label: "Decisions", value: decisions.length, color: "text-purple-600" },
-            { label: "Knowledge", value: knowledge.length, color: "text-amber-600" },
+            { label: "Assets",    value: assets.length,          color: "text-blue-600"   },
+            { label: "Decisions", value: decisions.length,       color: "text-purple-600" },
+            { label: "Recs",      value: recommendations.length, color: "text-green-600"  },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-gray-50 rounded-xl px-4 py-3">
               <div className={cn("text-2xl font-bold", color)}>{value}</div>
@@ -317,8 +324,35 @@ export default function CampaignDetailPage() {
       </Section>
 
       {/* ── Recommendations ── */}
-      <Section title="Recommendations" icon={CheckCircle2} count={0} defaultOpen={false}>
-        <EmptyState label="Las Recommendations derivadas de Decisions están disponibles en Sprint 3B." />
+      <Section title="Recommendations" icon={Lightbulb} count={recommendations.length} defaultOpen={true}>
+        {recommendations.length === 0 ? (
+          <EmptyState label="No hay recomendaciones todavía. Generá un mes en JClaude para activar el pipeline completo." />
+        ) : (
+          <div className="space-y-3">
+            {recommendations.map(r => (
+              <div key={r.id} className="border border-gray-100 rounded-xl p-4">
+                <div className="flex items-start justify-between gap-3 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{r.action_type.replace(/_/g, " ")}</span>
+                    <p className="text-sm font-semibold text-gray-800 mt-0.5">{r.title}</p>
+                    <p className="text-sm text-gray-500 mt-1 leading-snug">{r.body}</p>
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 capitalize",
+                    r.status === "accepted" ? "bg-green-100 text-green-700"
+                    : r.status === "pending" ? "bg-yellow-100 text-yellow-700"
+                    : "bg-gray-100 text-gray-500"
+                  )}>{r.status}</span>
+                </div>
+                {r.action_detail?.confidence !== undefined && (
+                  <div className="mt-2">
+                    <Confidence value={r.action_detail.confidence as number} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </Section>
 
       {/* ── Activity ── */}
@@ -326,20 +360,20 @@ export default function CampaignDetailPage() {
         {activity.length === 0 ? <EmptyState label="Sin actividad registrada." /> : (
           <div className="space-y-1">
             {activity.map(e => {
-              const Icon = e.event_type.includes("fail") ? XCircle
-                : e.event_type.includes("complet") ? CheckCircle2
-                : e.event_type.includes("start") ? Clock
+              const Icon = e.event.includes("fail") ? XCircle
+                : e.event.includes("complet") ? CheckCircle2
+                : e.event.includes("start") ? Clock
                 : AlertCircle
               return (
                 <div key={e.id} className="flex items-start gap-3 py-2.5 border-b border-gray-50 last:border-0">
                   <Icon size={14} className={cn(
                     "mt-0.5 shrink-0",
-                    e.event_type.includes("fail") ? "text-red-400"
-                    : e.event_type.includes("complet") ? "text-green-500"
+                    e.event.includes("fail") ? "text-red-400"
+                    : e.event.includes("complet") ? "text-green-500"
                     : "text-gray-400"
                   )} />
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-gray-700 font-medium">{e.event_type.replace(/\./g, " → ")}</span>
+                    <span className="text-sm text-gray-700 font-medium">{e.event.replace(/\./g, " → ")}</span>
                     <span className="text-xs text-gray-400 ml-2 capitalize">{e.actor_type}</span>
                   </div>
                   <span className="text-xs text-gray-400 shrink-0">

@@ -15,12 +15,14 @@ function deriveContentDecision(objects: KnowledgeObject[], sampleSize: number): 
   const mix = objects.find(o => o.type === "content_mix")
   if (!mix || mix.confidence < 0.3) return null
 
-  const data = mix.data as Record<string, number>
-  const dominant = Object.entries(data).sort((a, b) => b[1] - a[1])[0]
+  const data = mix.data as { counts: Record<string, number>; sorted: [string, number][] }
+  const total = Object.values(data.counts ?? {}).reduce((s, n) => s + n, 0)
+  const dominant = (data.sorted ?? Object.entries(data.counts ?? {}).sort((a, b) => b[1] - a[1]))[0]
   if (!dominant) return null
 
-  const [topType, topPct] = dominant
-  const rationale = `El formato "${topType}" representa el ${Math.round(topPct * 100)}% del contenido generado. Priorizar este formato en nuevas campañas.`
+  const [topType, topCount] = dominant
+  const topPct = total > 0 ? Math.round((topCount / total) * 100) : 0
+  const rationale = `El formato "${topType}" representa el ${topPct}% del contenido generado. Priorizar este formato en nuevas campañas.`
 
   return {
     workspace_id: "",  // se rellena en buildDecisions
@@ -41,15 +43,20 @@ function deriveChannelDecision(objects: KnowledgeObject[], sampleSize: number): 
   const affinity = objects.find(o => o.type === "channel_affinity")
   if (!affinity || affinity.confidence < 0.3) return null
 
-  const data = affinity.data as Record<string, number>
-  const sorted = Object.entries(data).sort((a, b) => b[1] - a[1])
-  const [top] = sorted
-  if (!top) return null
+  const data = affinity.data as {
+    counts: Record<string, number>
+    dominant: string
+    dominant_pct: number
+    sorted: [string, number][]
+  }
+  const dominant    = data.dominant
+  const dominantPct = data.dominant_pct   // ya es porcentaje 0-100
+  const total       = Object.values(data.counts ?? {}).reduce((s, n) => s + n, 0)
+  const lowChannels = (data.sorted ?? []).filter(([, n]) => total > 0 && n / total < 0.1).map(([ch]) => ch)
 
-  const lowChannels = sorted.filter(([, pct]) => pct < 0.1).map(([ch]) => ch)
   const rationale = lowChannels.length > 0
-    ? `Concentrar esfuerzos en ${top[0]} (${Math.round(top[1] * 100)}%). Reducir frecuencia en: ${lowChannels.join(", ")}.`
-    : `${top[0]} es el canal dominante con ${Math.round(top[1] * 100)}% del contenido.`
+    ? `Concentrar esfuerzos en ${dominant} (${dominantPct}%). Reducir frecuencia en: ${lowChannels.join(", ")}.`
+    : `${dominant} es el canal dominante con ${dominantPct}% del contenido.`
 
   return {
     workspace_id: "", brand_id: "",

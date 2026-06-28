@@ -7,6 +7,7 @@ import type { BrandKnowledgeContext, KnowledgeObject } from "./types"
 import { runAllExtractors } from "./extractors"
 import { emitEvent } from "@/lib/events"
 import { generateAndStoreDecisions } from "@/lib/decision/engine"
+import { generateAndStoreRecommendations } from "@/lib/recommendation/engine"
 
 // ─── Extract & Store ──────────────────────────────────────────────────────────
 // Extrae conocimiento de los assets de un workspace/brand y lo persiste en memories.
@@ -81,9 +82,14 @@ export async function extractAndStoreKnowledge(
     },
   })
 
-  // Pipeline: Knowledge → Decision (awaited — fire-and-forget no funciona en serverless)
+  // Pipeline: Knowledge → Decision → Recommendation (todo awaited en serverless)
   await generateAndStoreDecisions(supabase, workspaceId, brandId, campaignId)
     .catch(err => console.error("[knowledge/engine] Decision generation error:", err))
+
+  if (campaignId) {
+    await generateAndStoreRecommendations(supabase, workspaceId, brandId, campaignId)
+      .catch(err => console.error("[knowledge/engine] Recommendation generation error:", err))
+  }
 
   return objects
 }
