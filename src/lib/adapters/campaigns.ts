@@ -1,18 +1,14 @@
-// Adapter layer — campaigns y brands
-// Resuelve o crea el Brand/Campaign por defecto de un workspace.
-// Durante Sprint 1 cada workspace tiene exactamente una Brand y una Campaign "General".
-
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Brand, Campaign } from "@/lib/types/domain"
+import { emitEvent } from "@/lib/events"
 
-// ─── Get or create Default Brand ─────────────────────────────
+// ─── Get or create Default Brand ─────────────────────────────────────────────
 
 export async function getOrCreateDefaultBrand(
   supabase: SupabaseClient,
   workspaceId: string,
   workspaceName?: string
 ): Promise<Brand> {
-  // Buscar brand existente
   const { data: existing } = await supabase
     .from("brands")
     .select("*")
@@ -21,9 +17,12 @@ export async function getOrCreateDefaultBrand(
     .limit(1)
     .single()
 
-  if (existing) return existing as Brand
+  if (existing) {
+    // Ensure brand memory exists even if brand was created before Sprint 1.5
+    await ensureBrandMemory(supabase, existing as Brand)
+    return existing as Brand
+  }
 
-  // Obtener nombre del workspace si no vino como parámetro
   let name = workspaceName
   if (!name) {
     const { data: ws } = await supabase
@@ -34,14 +33,13 @@ export async function getOrCreateDefaultBrand(
     name = ws?.name ?? "Marca"
   }
 
-  // Obtener perfil de jclaude_profiles si existe
   const { data: profile } = await supabase
     .from("jclaude_profiles")
     .select("brand_name, tone, key_messages, target_audience, industry")
     .eq("workspace_id", workspaceId)
     .single()
 
-  const slug = workspaceId.slice(0, 8) // slug único basado en workspace_id
+  const slug = workspaceId.slice(0, 8)
 
   const { data: created, error } = await supabase
     .from("brands")
@@ -63,10 +61,67 @@ export async function getOrCreateDefaultBrand(
     .single()
 
   if (error) throw new Error(`Error creando Brand: ${error.message}`)
-  return created as Brand
+
+  const brand = created as Brand
+
+  await Promise.all([
+    emitEvent({
+      workspaceId,
+      eventType:  "brand.created",
+      entityType: "brand",
+      entityId:   brand.id,
+      actorType:  "system",
+      brandId:    brand.id,
+    }),
+    ensureBrandMemory(supabase, brand),
+  ])
+
+  return brand
 }
 
-// ─── Get or create Default Campaign ──────────────────────────
+// ─── Ensure Brand Memory exists ───────────────────────────────────────────────
+
+export async function ensureBrandMemory(
+  supabase: SupabaseClient,
+  brand: Brand
+): Promise<void> {
+  const { data: existing } = await supabase
+    .from("memories")
+    .select("id")
+    .eq("brand_id", brand.id)
+    .eq("memory_type", "brand")
+    .limit(1)
+    .single()
+
+  if (existing) return
+
+  const { data: memory } = await supabase
+    .from("memories")
+    .insert({
+      workspace_id: brand.workspace_id,
+      brand_id:     brand.id,
+      memory_type:  "brand",
+      status:       "active",
+      title:        `Brand Memory — ${brand.name}`,
+      content:      "",
+      source:       "system",
+    })
+    .select("id")
+    .single()
+
+  if (memory) {
+    await emitEvent({
+      workspaceId: brand.workspace_id,
+      eventType:   "memory.initialized",
+      entityType:  "memory",
+      entityId:    memory.id,
+      actorType:   "system",
+      brandId:     brand.id,
+    })
+  }
+}
+
+// ─── Get or create Default Campaign ──────────────────────────────────────────
 
 export async function getOrCreateDefaultCampaign(
   supabase: SupabaseClient,
@@ -105,10 +160,23 @@ export async function getOrCreateDefaultCampaign(
     .single()
 
   if (error) throw new Error(`Error creando Campaign: ${error.message}`)
-  return created as Campaign
+
+  const campaign = created as Campaign
+
+  await emitEvent({
+    workspaceId,
+    eventType:   "campaign.created",
+    entityType:  "campaign",
+    entityId:    campaign.id,
+    actorType:   "system",
+    brandId,
+    campaignId:  campaign.id,
+  })
+
+  return campaign
 }
 
-// ─── Get campaign stats ───────────────────────────────────────
+// ─── Get campaign stats ───────────────────────────────────────────────────────
 
 export async function getCampaignStats(
   supabase: SupabaseClient,

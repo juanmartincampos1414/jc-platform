@@ -1,13 +1,8 @@
-// Adapter layer — assets
-// Lee desde la tabla `assets` (nueva).
-// Durante Sprint 1 los datos vienen de backfill + dual-write.
-// En Sprint 2 las tablas viejas se deprecan completamente.
-
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Asset, AssetComment, AssetStatus, Channel, AssetType } from "@/lib/types/domain"
-import { emitActivity } from "@/lib/activity"
+import { emitActivity, emitEvent } from "@/lib/events"
 
-// ─── Read ────────────────────────────────────────────────────
+// ─── Read ─────────────────────────────────────────────────────────────────────
 
 export async function getAssets(
   supabase: SupabaseClient,
@@ -74,7 +69,7 @@ export async function getAssetComments(
   return (data ?? []) as AssetComment[]
 }
 
-// ─── Write ───────────────────────────────────────────────────
+// ─── Write ────────────────────────────────────────────────────────────────────
 
 export async function updateAssetStatus(
   supabase: SupabaseClient,
@@ -82,12 +77,13 @@ export async function updateAssetStatus(
     assetId:         string
     workspaceId:     string
     userId:          string
+    brandId?:        string
+    campaignId?:     string
     status:          "approved" | "rejected" | "needs_changes" | "sent_for_approval"
     rejectionReason?: string
     changeRequests?:  string
   }
 ): Promise<{ error?: string }> {
-  // Invariante del dominio: rejection_reason es obligatorio al rechazar
   if (
     (params.status === "rejected" || params.status === "needs_changes") &&
     !params.rejectionReason?.trim()
@@ -114,17 +110,39 @@ export async function updateAssetStatus(
 
   if (error) return { error: error.message }
 
-  await emitActivity({
-    workspace_id: params.workspaceId,
-    user_id:      params.userId,
-    action:       `asset.${params.status}`,
-    entity_type:  "asset",
-    entity_id:    params.assetId,
-    metadata: {
-      rejection_reason: params.rejectionReason ?? null,
-      change_requests:  params.changeRequests  ?? null,
-    },
-  })
+  const eventType = params.status === "approved"
+    ? "asset.approved"
+    : params.status === "rejected"
+    ? "asset.rejected"
+    : "asset.needs_changes"
+
+  await Promise.all([
+    emitEvent({
+      workspaceId: params.workspaceId,
+      eventType:   eventType as "asset.approved" | "asset.rejected" | "asset.needs_changes",
+      entityType:  "asset",
+      entityId:    params.assetId,
+      actorId:     params.userId,
+      actorType:   "user",
+      brandId:     params.brandId,
+      campaignId:  params.campaignId,
+      metadata: {
+        rejection_reason: params.rejectionReason ?? null,
+        change_requests:  params.changeRequests  ?? null,
+      },
+    }),
+    emitActivity({
+      workspace_id: params.workspaceId,
+      user_id:      params.userId,
+      action:       `asset.${params.status}`,
+      entity_type:  "asset",
+      entity_id:    params.assetId,
+      metadata: {
+        rejection_reason: params.rejectionReason ?? null,
+        change_requests:  params.changeRequests  ?? null,
+      },
+    }),
+  ])
 
   return {}
 }
@@ -153,9 +171,88 @@ export async function addAssetComment(
   return { comment: data as AssetComment }
 }
 
-// ─── Dual-write helpers (Sprint 1 only) ─────────────────────
-// Escriben en asset Y en la tabla vieja para que código legacy siga funcionando.
+// ─── Dual-write helpers ───────────────────────────────────────────────────────
 
+export async function insertCreativeForPost(
+  supabase: SupabaseClient,
+  params: {
+    workspaceId:  string
+    campaignId:   string
+    content:      string   // copy + hashtags concatenados
+    agentJobId?:  string
+    sourceTable?: string
+    sourceId?:    string
+  }
+): Promise<{ creativeId?: string; error?: string }> {
+  const { data, error } = await supabase
+    .from("creatives")
+    .insert({
+      workspace_id:  params.workspaceId,
+      campaign_id:   params.campaignId,
+      creative_type: "copy",
+      status:        "draft",
+      content:       params.content,
+      model:         "claude-sonnet-4-6",
+      agent_job_id:  params.agentJobId  ?? null,
+      source_table:  params.sourceTable ?? null,
+      source_id:     params.sourceId    ?? null,
+    })
+    .select("id")
+    .single()
+
+  if (error) return { error: error.message }
+  return { creativeId: data.id }
+}
+
+export async function insertAssetForCreative(
+  supabase: SupabaseClient,
+  params: {
+    workspaceId:  string
+    campaignId:   string
+    creativeId:   string   // obligatorio — assets sin creative_id viola el dominio
+    channel:      string
+    assetType:    string
+    caption:      string
+    hashtags:     string
+    imageBrief:   string
+    scheduledAt:  string
+    agentJobId?:  string
+    sourceTable?: string
+    sourceId?:    string
+  }
+): Promise<{ assetId?: string; error?: string }> {
+  const normalizedType    = (["post","reel","story","carousel"].includes(params.assetType) ? params.assetType : "post") as AssetType
+  const normalizedChannel = (["instagram","facebook","tiktok","youtube","linkedin","twitter"].includes(params.channel) ? params.channel : "instagram") as Channel
+
+  const { data, error } = await supabase
+    .from("assets")
+    .insert({
+      workspace_id:  params.workspaceId,
+      campaign_id:   params.campaignId,
+      creative_id:   params.creativeId,
+      agent_job_id:  params.agentJobId  ?? null,
+      asset_type:    normalizedType,
+      channel:       normalizedChannel,
+      status:        "draft" as AssetStatus,
+      caption:       params.caption,
+      file_urls:     [],
+      scheduled_at:  params.scheduledAt,
+      metadata: {
+        hashtags:    params.hashtags,
+        image_brief: params.imageBrief,
+        source:      "jclaude",
+      },
+      source_table:  params.sourceTable ?? null,
+      source_id:     params.sourceId    ?? null,
+    })
+    .select("id")
+    .single()
+
+  if (error) return { error: error.message }
+  return { assetId: data.id }
+}
+
+// Kept for backward compatibility — Sprint 2 removes this
 export async function insertAssetFromJClaudePost(
   supabase: SupabaseClient,
   params: {
@@ -171,13 +268,8 @@ export async function insertAssetFromJClaudePost(
     sourceId?:    string
   }
 ): Promise<{ assetId?: string; error?: string }> {
-  const normalizedType = (["post","reel","story","carousel"].includes(params.assetType)
-    ? params.assetType
-    : "post") as AssetType
-
-  const normalizedChannel = (["instagram","facebook","tiktok","youtube","linkedin","twitter"].includes(params.channel)
-    ? params.channel
-    : "instagram") as Channel
+  const normalizedType    = (["post","reel","story","carousel"].includes(params.assetType) ? params.assetType : "post") as AssetType
+  const normalizedChannel = (["instagram","facebook","tiktok","youtube","linkedin","twitter"].includes(params.channel) ? params.channel : "instagram") as Channel
 
   const { data, error } = await supabase
     .from("assets")
@@ -191,9 +283,9 @@ export async function insertAssetFromJClaudePost(
       file_urls:     [],
       scheduled_at:  params.scheduledAt,
       metadata: {
-        hashtags:   params.hashtags,
+        hashtags:    params.hashtags,
         image_brief: params.imageBrief,
-        source:     "jclaude",
+        source:      "jclaude",
         ...params.metadata,
       },
       ...(params.sourceId ? { source_table: "jclaude_posts", source_id: params.sourceId } : {}),
