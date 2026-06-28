@@ -6,7 +6,7 @@ import { CheckCircle, XCircle, MessageCircle, Clock, ChevronLeft, ChevronRight, 
 import { toast } from "sonner"
 
 type Network = "instagram" | "facebook" | "tiktok" | "youtube"
-type PostStatus = "pending" | "approved" | "rejected" | "needs_changes" | "published"
+type PostStatus = "draft" | "pending" | "approved" | "rejected" | "needs_changes" | "published"
 
 interface Comment { id: string; content: string; created_at: string; user_id: string }
 interface Post {
@@ -28,11 +28,12 @@ const NET_CONFIG: Record<Network, { label: string; bg: string }> = {
 }
 
 const STATUS_CONFIG: Record<PostStatus, { label: string; color: string; bg: string }> = {
-  pending: { label: "Pendiente", color: "text-amber-700", bg: "bg-amber-100" },
-  approved: { label: "Aprobado", color: "text-green-700", bg: "bg-green-100" },
-  rejected: { label: "Rechazado", color: "text-red-700", bg: "bg-red-100" },
-  needs_changes: { label: "Necesita cambios", color: "text-orange-700", bg: "bg-orange-100" },
-  published: { label: "Publicado", color: "text-gray-600", bg: "bg-gray-100" },
+  draft:         { label: "Borrador",          color: "text-gray-500",   bg: "bg-gray-100" },
+  pending:       { label: "Pendiente",          color: "text-amber-700",  bg: "bg-amber-100" },
+  approved:      { label: "Aprobado",           color: "text-green-700",  bg: "bg-green-100" },
+  rejected:      { label: "Rechazado",          color: "text-red-700",    bg: "bg-red-100" },
+  needs_changes: { label: "Necesita cambios",   color: "text-orange-700", bg: "bg-orange-100" },
+  published:     { label: "Publicado",          color: "text-gray-600",   bg: "bg-gray-100" },
 }
 
 const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
@@ -180,7 +181,7 @@ export default function SocialMediaPage() {
           ))}
         </div>
         <div className="flex gap-1 bg-white border border-gray-100 rounded-xl p-1">
-          {(["all","pending","approved","needs_changes"] as const).map(s => (
+          {(["all","draft","pending","approved","needs_changes"] as const).map(s => (
             <button key={s} onClick={() => setActiveStatus(s)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${activeStatus === s ? "bg-[#0A0A0A] text-white" : "text-gray-500 hover:text-gray-700"}`}>
               {s === "all" ? "Todos" : STATUS_CONFIG[s].label}
             </button>
