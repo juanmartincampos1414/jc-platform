@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import {
   FileText, Calendar, TrendingUp, Users, Globe,
   Star, Settings, LogOut, ChevronDown, LayoutDashboard,
-  CreditCard, Shield, Sparkles
+  CreditCard, Shield, Sparkles, Target
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -66,6 +66,7 @@ export default function Sidebar({
 
   const navItems: NavItem[] = [
     { label: "Dashboard", href: base, icon: LayoutDashboard },
+    { label: "Campaigns", href: `${base}/campaigns`, icon: Target },
     { label: "Legales", href: `${base}/legales`, icon: FileText, service: "legales" },
     { label: "Social Media", href: `${base}/social-media`, icon: Calendar, service: "social_media" },
     { label: "Ads", href: `${base}/ads`, icon: TrendingUp, service: "ads" },
