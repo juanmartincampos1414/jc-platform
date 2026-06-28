@@ -49,7 +49,7 @@ export async function GET(
       .select("id, title, body, action_type, action_detail, status, decision_id, created_at")
       .eq("source_campaign_id", campaignId)
       .not("decision_id", "is", null)
-      .in("status", ["pending", "accepted"])
+      .in("status", ["pending", "accepted", "rejected"])
       .order("created_at", { ascending: false })
       .limit(10),
 
