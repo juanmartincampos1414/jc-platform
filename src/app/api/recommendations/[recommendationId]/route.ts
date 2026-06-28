@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { emitEvent } from "@/lib/events"
+import { processRecommendationAction } from "@/lib/learning/engine"
 
 const ALLOWED_STATUSES = ["accepted", "rejected", "pending"] as const
 type ActionStatus = typeof ALLOWED_STATUSES[number]
@@ -29,7 +30,7 @@ export async function PATCH(
   // Verificar que la recommendation pertenece al workspace
   const { data: existing } = await supabase
     .from("recommendations")
-    .select("id, status, source_campaign_id, brand_id, workspace_id")
+    .select("id, status, source_campaign_id, brand_id, workspace_id, decision_id")
     .eq("id", recommendationId)
     .eq("workspace_id", workspaceId)
     .single()
@@ -68,6 +69,19 @@ export async function PATCH(
     campaignId: existing.source_campaign_id,
     metadata:   { decision_reason: decision_reason ?? null },
   })
+
+  // Learning: accepted/rejected alimentan el Knowledge Engine
+  if ((status === "accepted" || status === "rejected") && existing.decision_id) {
+    await processRecommendationAction(supabase, {
+      recommendationId,
+      decisionId:     existing.decision_id,
+      workspaceId,
+      brandId:        existing.brand_id,
+      campaignId:     existing.source_campaign_id,
+      action:         status,
+      decisionReason: decision_reason,
+    }).catch(err => console.error("[learning/engine] Error:", err))
+  }
 
   return NextResponse.json({ recommendation: updated })
 }

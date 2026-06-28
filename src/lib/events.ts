@@ -24,6 +24,7 @@ export type DomainEvent =
   | "recommendation.accepted"
   | "recommendation.rejected"
   | "recommendation.pending"
+  | "memory.feedback_applied"
 
 // ─── emitEvent — domain events table ─────────────────────────────────────────
 // These are immutable OS-level facts. Never deleted, never updated.
