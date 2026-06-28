@@ -4,12 +4,13 @@ import { createClient } from "@/lib/supabase/server"
 import { getOrCreateDefaultBrand, getOrCreateDefaultCampaign } from "@/lib/adapters/campaigns"
 import { insertCreativeForPost, insertAssetForCreative, deleteDraftAssets } from "@/lib/adapters/assets"
 import { emitEvent, emitActivity } from "@/lib/events"
+import { loadBrandKnowledgeContext, extractAndStoreKnowledge } from "@/lib/knowledge/engine"
 
 export const maxDuration = 60
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL     = "claude-sonnet-4-6"
-const PROMPT_V  = "generate-month-v2"
+const PROMPT_V  = "generate-month-v3"   // v3: knowledge-aware
 
 type PostPlan = {
   date: string; time: string; network: string; post_type: string
@@ -42,6 +43,18 @@ export async function POST(req: NextRequest) {
     campaign = await getOrCreateDefaultCampaign(supabase, workspaceId, brand.id, year)
   } catch (err) {
     console.error("[generate-month] Domain resolution error:", err)
+  }
+
+  // ── 1b. Cargar Knowledge Context de la Brand ─────────────────
+  // Si la brand tiene historial, el prompt de Claude se enriquece automáticamente
+  let knowledgeContext = ""
+  if (brand) {
+    try {
+      const ctx = await loadBrandKnowledgeContext(supabase, workspaceId, brand.id, brand.name)
+      knowledgeContext = ctx.promptContext
+    } catch {
+      // Knowledge load failure nunca bloquea la generación
+    }
   }
 
   // ── 2. Borrar drafts del mes en ambas tablas ──────────────────
@@ -112,7 +125,7 @@ export async function POST(req: NextRequest) {
         content: `Creá un calendario de contenido para ${monthName} ${year} para una marca argentina.
 
 MARCA: ${profile.brand_name || "la marca"} | Rubro: ${profile.industry || "general"} | Tono: ${profile.tone || "profesional"} | Audiencia: ${profile.target_audience || "general"}
-
+${knowledgeContext}
 REGLAS:
 - Exactamente ${postsLimit} posts distribuidos en el mes (días 1 al ${daysInMonth})
 - Redes: ${networks.join(", ")}
@@ -303,6 +316,14 @@ Respondé ÚNICAMENTE con este JSON, sin texto adicional, sin markdown:
       metadata:     { month, year, count: inserted?.length ?? 0, campaign_id: campaign?.id, brand_id: brand?.id },
     }),
   ])
+
+  // ── 10. Knowledge Extraction (fire-and-forget) ───────────────
+  // Después de cada generación, actualizar el Knowledge del brand
+  // para que la próxima generación sea más informada
+  if (brand) {
+    extractAndStoreKnowledge(supabase, workspaceId, brand.id, campaign?.id)
+      .catch(err => console.error("[generate-month] Knowledge extraction error:", err))
+  }
 
   return NextResponse.json({ posts: inserted, count: inserted?.length })
 }
