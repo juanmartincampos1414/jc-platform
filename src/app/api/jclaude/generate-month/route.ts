@@ -5,12 +5,13 @@ import { getOrCreateDefaultBrand, getOrCreateDefaultCampaign } from "@/lib/adapt
 import { insertCreativeForPost, insertAssetForCreative, deleteDraftAssets } from "@/lib/adapters/assets"
 import { emitEvent, emitActivity } from "@/lib/events"
 import { loadBrandKnowledgeContext, extractAndStoreKnowledge } from "@/lib/knowledge/engine"
+import { loadDecisionContext } from "@/lib/decision/engine"
 
 export const maxDuration = 60
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const MODEL     = "claude-sonnet-4-6"
-const PROMPT_V  = "generate-month-v3"   // v3: knowledge-aware
+const PROMPT_V  = "generate-month-v4"   // v4: knowledge + decision-aware
 
 type PostPlan = {
   date: string; time: string; network: string; post_type: string
@@ -45,15 +46,22 @@ export async function POST(req: NextRequest) {
     console.error("[generate-month] Domain resolution error:", err)
   }
 
-  // ── 1b. Cargar Knowledge Context de la Brand ─────────────────
-  // Si la brand tiene historial, el prompt de Claude se enriquece automáticamente
+  // ── 1b. Cargar Knowledge + Decision Context ──────────────────
+  // Knowledge: qué sabe el sistema sobre la brand
+  // Decisions: qué decidió el sistema sobre cómo actuar
+  // Claude consume ambos. No genera ninguno de los dos.
   let knowledgeContext = ""
+  let decisionContext  = ""
   if (brand) {
     try {
-      const ctx = await loadBrandKnowledgeContext(supabase, workspaceId, brand.id, brand.name)
-      knowledgeContext = ctx.promptContext
+      const [kCtx, dCtx] = await Promise.all([
+        loadBrandKnowledgeContext(supabase, workspaceId, brand.id, brand.name),
+        loadDecisionContext(supabase, workspaceId, brand.id),
+      ])
+      knowledgeContext = kCtx.promptContext
+      decisionContext  = dCtx.promptContext
     } catch {
-      // Knowledge load failure nunca bloquea la generación
+      // Load failure nunca bloquea la generación
     }
   }
 
@@ -125,7 +133,7 @@ export async function POST(req: NextRequest) {
         content: `Creá un calendario de contenido para ${monthName} ${year} para una marca argentina.
 
 MARCA: ${profile.brand_name || "la marca"} | Rubro: ${profile.industry || "general"} | Tono: ${profile.tone || "profesional"} | Audiencia: ${profile.target_audience || "general"}
-${knowledgeContext}
+${knowledgeContext}${decisionContext}
 REGLAS:
 - Exactamente ${postsLimit} posts distribuidos en el mes (días 1 al ${daysInMonth})
 - Redes: ${networks.join(", ")}

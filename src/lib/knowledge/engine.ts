@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { BrandKnowledgeContext, KnowledgeObject } from "./types"
 import { runAllExtractors } from "./extractors"
 import { emitEvent } from "@/lib/events"
+import { generateAndStoreDecisions } from "@/lib/decision/engine"
 
 // ─── Extract & Store ──────────────────────────────────────────────────────────
 // Extrae conocimiento de los assets de un workspace/brand y lo persiste en memories.
@@ -79,6 +80,10 @@ export async function extractAndStoreKnowledge(
       asset_count:     assets.length,
     },
   })
+
+  // Pipeline: Knowledge → Decision (fire-and-forget)
+  generateAndStoreDecisions(supabase, workspaceId, brandId, campaignId)
+    .catch(err => console.error("[knowledge/engine] Decision generation error:", err))
 
   return objects
 }
