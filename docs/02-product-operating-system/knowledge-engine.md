@@ -1,8 +1,79 @@
 # Knowledge Engine — Design Document
 
 **Sprint:** 2A
-**Estado:** Implementado v1
+**Estado:** Implementado v1 — Arquitectura congelada
 **Fecha:** 2026-06-28
+
+---
+
+## Regla fundamental
+
+**Knowledge Engine es infraestructura. No una feature de Claude.**
+
+El conocimiento pertenece al producto.
+Claude es uno de los consumidores. No el único. No el principal.
+
+Si mañana se reemplaza Claude por otro modelo, el Knowledge Engine no cambia.
+Los Knowledge Objects no cambian.
+Solo cambia cómo el consumidor los lee.
+
+---
+
+## Arquitectura congelada
+
+```
+Events + Assets + Performance
+        ↓
+Knowledge Engine
+        ↓
+Knowledge Objects (tipados, con confidence)
+        ↓
+Memory Store
+        ↓
+Consumers
+```
+
+**Consumers actuales y futuros:**
+
+| Consumer | Qué consume |
+|---|---|
+| Claude Prompt | `promptContext` string para enriquecer generación |
+| Campaign Planner | canales y formatos preferidos |
+| Recommendation Engine | patrones observados como base de recomendaciones |
+| Dashboard | visualización del conocimiento acumulado |
+| Brand Overview | resumen ejecutivo del conocimiento de la marca |
+| Performance Analysis | correlación entre knowledge y resultados |
+| Reportes | conocimiento exportado en informes mensuales |
+| Future AI Agents | cualquier agente nuevo parte del estado existente |
+
+**Invariante:** el conocimiento existe una sola vez. Los consumidores lo leen. Nunca al revés.
+
+---
+
+## API Contract (congelado)
+
+```
+Knowledge Engine
+
+Input:
+  - Events (domain facts)
+  - Assets (content entities)
+  - Performance (Sprint 2B)
+  - Memory (estado previo)
+
+Output:
+  - Knowledge Objects[]
+      - type: KnowledgeType
+      - title: string
+      - content: string (human-readable)
+      - data: Record (machine-readable)
+      - confidence: 0.0 – 1.0
+      - source: string
+      - sample_size: number
+      - last_updated: ISO timestamp
+```
+
+Cualquier consumidor usa este contrato. Ninguno necesita saber cómo fue construido.
 
 ---
 

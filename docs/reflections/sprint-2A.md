@@ -72,7 +72,7 @@ Este patrón —**Extract → Score → Filter → Inject → Generate → Learn
 
 ---
 
-## ¿Qué parte pertenece solamente a JC AI Agency?
+## ¿Qué parte pertenece únicamente a JC AI Agency?
 
 - El perfil de la marca (industry, tone, target_audience)
 - Los tipos de assets (post, reel, story)
@@ -80,17 +80,84 @@ Este patrón —**Extract → Score → Filter → Inject → Generate → Learn
 - El formato del calendario mensual
 - Las reglas de copy (150 chars, 8 hashtags)
 - La integración con `jclaude_posts` (tabla legacy)
+- Los tipos de Knowledge específicos de marketing: `content_mix`, `channel_affinity`, `approval_signals`
+
+---
+
+## ¿Qué parte parece ser infraestructura reutilizable?
+
+- El contrato del Knowledge Engine: Events + Assets → Knowledge Objects con confidence
+- El ciclo Extract → Score → Filter → Store → Serve
+- La idempotencia de la extracción (deprecar anterior, insertar nuevo)
+- El confidence threshold como filtro de ruido
+- La separación entre producir conocimiento y consumirlo
+- El fire-and-forget post-operación para no bloquear el flujo principal
+
+Esta parte no sabe nada de marketing. Sabe extraer patrones de datos con tipos y scores de confianza.
+
+---
+
+## ¿Qué parte terminará viviendo en RUN72 Core OS?
+
+**Core Candidate — Knowledge Engine v1**
+
+El patrón completo:
+
+```
+Domain Events + Entities
+        ↓
+Extractors tipados (con confidence)
+        ↓
+Knowledge Objects
+        ↓
+Memory Store (idempotente)
+        ↓
+Consumers (cualquiera)
+```
+
+Condición para mover al Core: que aparezca en al menos 2 productos.
+Candidatos inmediatos: Margin (knowledge sobre costos/recetas) y Stay (knowledge sobre huéspedes/temporadas).
+
+---
+
+## ¿Qué APIs del producto podrían consumir este conocimiento además de Claude?
+
+- **Campaign Planner**: qué canales y formatos priorizar al armar una campaña
+- **Recommendation Engine**: basar recomendaciones en knowledge observado, no en reglas hardcodeadas
+- **Dashboard**: mostrar al cliente qué aprendió el sistema sobre su marca
+- **Brand Overview**: resumen ejecutivo del conocimiento acumulado
+- **Performance Analysis**: correlacionar knowledge con resultados reales
+- **Reportes**: exportar conocimiento como parte del informe mensual
+- **Future AI Agents**: cualquier agente nuevo parte del conocimiento existente, no de cero
+- **APIs externas**: exponer knowledge a herramientas de terceros si el cliente lo habilita
+
+El conocimiento existe una sola vez. Cada consumidor lo lee. Nunca al revés.
+
+---
+
+## ¿Qué ocurriría si mañana cambiáramos Claude por otro modelo?
+
+Nada rompería en el Knowledge Engine.
+
+Los extractores leen assets. No saben qué modelo generó esos assets.
+Los Knowledge Objects se almacenan en `memories`. No tienen referencia a Claude.
+`loadBrandKnowledgeContext()` construye un string de texto plano. Cualquier modelo puede consumirlo.
+
+Lo único que cambiaría es el formato del `promptContext` — habría que adaptar cómo se inyecta el conocimiento al prompt del nuevo modelo. Pero el conocimiento en sí es independiente.
+
+**Esto confirma la regla: Knowledge pertenece al producto. Claude solamente lo consume.**
 
 ---
 
 ## ¿Qué parte pertenece a RUN72 Core OS?
 
 - El concepto de Knowledge Object con tipo y confidence
-- El patrón Extractor → Store → Load → Inject
+- El patrón Extractor → Store → Load → Serve
 - La separación Memory / Knowledge / Recommendation
-- El ciclo de aprendizaje post-generación (fire-and-forget)
+- El ciclo de aprendizaje post-operación (fire-and-forget)
 - El confidence threshold como filtro de ruido
 - La idempotencia de la extracción (deprecar anterior, insertar nuevo)
+- El principio: el conocimiento existe una sola vez, los consumidores son múltiples
 
 ---
 
