@@ -119,17 +119,18 @@ Respondé ÚNICAMENTE con este JSON, sin texto adicional, sin markdown:
   }
 
   // ── Dual-write: tabla nueva (assets) ─────────────────────────
-  if (campaign) {
-    const assetInserts = plan.map(p =>
+  if (campaign && inserted) {
+    const assetInserts = plan.map((p, i) =>
       insertAssetFromJClaudePost(supabase, {
         workspaceId,
-        campaignId:  campaign.id,
-        channel:     p.network,
-        assetType:   p.post_type,
-        caption:     p.copy,
-        hashtags:    p.hashtags,
-        imageBrief:  p.image_brief,
-        scheduledAt: `${p.date}T${p.time}:00`,
+        campaignId:   campaign.id,
+        channel:      p.network,
+        assetType:    p.post_type,
+        caption:      p.copy,
+        hashtags:     p.hashtags,
+        imageBrief:   p.image_brief,
+        scheduledAt:  `${p.date}T${p.time}:00`,
+        sourceId:     inserted[i]?.id,
       })
     )
     // Fire-and-forget — no bloqueamos la respuesta si falla la nueva tabla

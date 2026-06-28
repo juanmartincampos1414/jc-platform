@@ -168,6 +168,7 @@ export async function insertAssetFromJClaudePost(
     imageBrief:   string
     scheduledAt:  string
     metadata?:    Record<string, unknown>
+    sourceId?:    string
   }
 ): Promise<{ assetId?: string; error?: string }> {
   const normalizedType = (["post","reel","story","carousel"].includes(params.assetType)
@@ -195,6 +196,7 @@ export async function insertAssetFromJClaudePost(
         source:     "jclaude",
         ...params.metadata,
       },
+      ...(params.sourceId ? { source_table: "jclaude_posts", source_id: params.sourceId } : {}),
     })
     .select("id")
     .single()
