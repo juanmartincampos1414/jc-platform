@@ -21,6 +21,9 @@ export type DomainEvent =
   | "document.signed"
   | "distribution.created"
   | "recommendation.created"
+  | "recommendation.accepted"
+  | "recommendation.rejected"
+  | "recommendation.pending"
 
 // ─── emitEvent — domain events table ─────────────────────────────────────────
 // These are immutable OS-level facts. Never deleted, never updated.

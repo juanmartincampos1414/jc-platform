@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
   ArrowLeft, Layers, Brain, Zap, Activity,
@@ -47,7 +47,8 @@ type Knowledge = {
 type Recommendation = {
   id: string; title: string; body: string
   action_type: string; action_detail: Record<string, unknown>
-  status: string; decision_id: string | null; created_at: string
+  status: string; decision_id: string | null
+  decision_reason?: string | null; created_at: string
 }
 
 type DomainEvent = {
@@ -126,6 +127,149 @@ function EmptyState({ label }: { label: string }) {
 
 // ─── Page ─────────────────────────────────────────────────────
 
+// ─── Recommendation Card ──────────────────────────────────────
+
+function RecommendationCard({
+  rec,
+  workspaceId,
+  onUpdated,
+}: {
+  rec: Recommendation
+  workspaceId: string
+  onUpdated: (id: string, newStatus: string, reason?: string) => void
+}) {
+  const [acting, setActing] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+  const [reason, setReason] = useState("")
+  const [reasonError, setReasonError] = useState("")
+
+  async function act(status: "accepted" | "rejected" | "pending", decision_reason?: string) {
+    setActing(true)
+    try {
+      const res = await fetch(`/api/recommendations/${rec.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, decision_reason, workspaceId }),
+      })
+      if (res.ok) {
+        onUpdated(rec.id, status, decision_reason)
+        setRejecting(false)
+        setReason("")
+      }
+    } finally {
+      setActing(false)
+    }
+  }
+
+  function handleReject() {
+    if (!reason.trim()) { setReasonError("El motivo es obligatorio"); return }
+    setReasonError("")
+    act("rejected", reason.trim())
+  }
+
+  const isDone = rec.status === "accepted" || rec.status === "rejected"
+
+  return (
+    <div className="border border-gray-100 rounded-xl p-4">
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <div className="flex-1 min-w-0">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            {rec.action_type.replace(/_/g, " ")}
+          </span>
+          <p className="text-sm font-semibold text-gray-800 mt-0.5">{rec.title}</p>
+          <p className="text-sm text-gray-500 mt-1 leading-snug">{rec.body}</p>
+          {rec.decision_reason && (
+            <p className="text-xs text-gray-400 mt-1 italic">Motivo: {rec.decision_reason}</p>
+          )}
+        </div>
+        <span className={cn(
+          "text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 capitalize",
+          rec.status === "accepted" ? "bg-green-100 text-green-700"
+          : rec.status === "rejected" ? "bg-red-100 text-red-600"
+          : "bg-yellow-100 text-yellow-700"
+        )}>{rec.status}</span>
+      </div>
+
+      {rec.action_detail?.confidence !== undefined && (
+        <div className="mt-2 mb-3">
+          <Confidence value={rec.action_detail.confidence as number} />
+        </div>
+      )}
+
+      {/* Rejection reason input */}
+      {rejecting && (
+        <div className="mt-3 space-y-2">
+          <input
+            autoFocus
+            value={reason}
+            onChange={e => { setReason(e.target.value); setReasonError("") }}
+            placeholder="Motivo del rechazo…"
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-red-400"
+          />
+          {reasonError && <p className="text-xs text-red-500">{reasonError}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={handleReject}
+              disabled={acting}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition"
+            >
+              {acting ? "…" : "Confirmar rechazo"}
+            </button>
+            <button
+              onClick={() => { setRejecting(false); setReason(""); setReasonError("") }}
+              className="text-xs px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-800 transition"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {!isDone && !rejecting && (
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={() => act("accepted")}
+            disabled={acting}
+            className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 transition"
+          >
+            <CheckCircle2 size={12} /> Aceptar
+          </button>
+          <button
+            onClick={() => setRejecting(true)}
+            disabled={acting}
+            className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition"
+          >
+            <XCircle size={12} /> Rechazar
+          </button>
+          {rec.status !== "pending" && (
+            <button
+              onClick={() => act("pending")}
+              disabled={acting}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition"
+            >
+              <Clock size={12} /> Pendiente
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Reopen if already decided */}
+      {isDone && (
+        <button
+          onClick={() => act("pending")}
+          disabled={acting}
+          className="mt-3 text-xs text-gray-400 hover:text-gray-600 transition"
+        >
+          Reabrir como pendiente
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────
+
 export default function CampaignDetailPage() {
   const { workspaceId, campaignId } = useParams<{ workspaceId: string; campaignId: string }>()
   const router = useRouter()
@@ -138,6 +282,18 @@ export default function CampaignDetailPage() {
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
   }, [campaignId, workspaceId])
+
+  const handleRecUpdated = useCallback((id: string, newStatus: string, reason?: string) => {
+    setData(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        recommendations: prev.recommendations.map(r =>
+          r.id === id ? { ...r, status: newStatus, decision_reason: reason ?? r.decision_reason } : r
+        ),
+      }
+    })
+  }, [])
 
   if (loading) {
     return (
@@ -330,26 +486,12 @@ export default function CampaignDetailPage() {
         ) : (
           <div className="space-y-3">
             {recommendations.map(r => (
-              <div key={r.id} className="border border-gray-100 rounded-xl p-4">
-                <div className="flex items-start justify-between gap-3 mb-1">
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{r.action_type.replace(/_/g, " ")}</span>
-                    <p className="text-sm font-semibold text-gray-800 mt-0.5">{r.title}</p>
-                    <p className="text-sm text-gray-500 mt-1 leading-snug">{r.body}</p>
-                  </div>
-                  <span className={cn(
-                    "text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 capitalize",
-                    r.status === "accepted" ? "bg-green-100 text-green-700"
-                    : r.status === "pending" ? "bg-yellow-100 text-yellow-700"
-                    : "bg-gray-100 text-gray-500"
-                  )}>{r.status}</span>
-                </div>
-                {r.action_detail?.confidence !== undefined && (
-                  <div className="mt-2">
-                    <Confidence value={r.action_detail.confidence as number} />
-                  </div>
-                )}
-              </div>
+              <RecommendationCard
+                key={r.id}
+                rec={r}
+                workspaceId={workspaceId}
+                onUpdated={handleRecUpdated}
+              />
             ))}
           </div>
         )}
