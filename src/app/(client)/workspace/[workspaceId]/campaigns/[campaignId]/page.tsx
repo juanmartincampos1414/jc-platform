@@ -15,8 +15,8 @@ import { cn } from "@/lib/utils"
 type CampaignData = {
   campaign: {
     id: string; name: string; status: string
-    start_date: string | null; end_date: string | null
-    objective: string | null; channels: string[] | null
+    starts_at: string | null; ends_at: string | null
+    brief: { objective?: string; channels?: string[] } | null
     brands: { name: string; industry: string | null } | null
   }
   assets: Asset[]
@@ -190,22 +190,22 @@ export default function CampaignDetailPage() {
               )}
             </div>
             <h1 className="text-xl font-bold text-gray-900">{campaign.name}</h1>
-            {campaign.objective && (
-              <p className="text-sm text-gray-500 mt-1">{campaign.objective}</p>
+            {campaign.brief?.objective && (
+              <p className="text-sm text-gray-500 mt-1">{campaign.brief.objective}</p>
             )}
           </div>
         </div>
 
         {/* Meta row */}
         <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-50 text-sm text-gray-500">
-          {campaign.start_date && (
-            <span><span className="text-gray-400">Inicio:</span> {new Date(campaign.start_date).toLocaleDateString("es-AR")}</span>
+          {campaign.starts_at && (
+            <span><span className="text-gray-400">Inicio:</span> {new Date(campaign.starts_at).toLocaleDateString("es-AR")}</span>
           )}
-          {campaign.end_date && (
-            <span><span className="text-gray-400">Fin:</span> {new Date(campaign.end_date).toLocaleDateString("es-AR")}</span>
+          {campaign.ends_at && (
+            <span><span className="text-gray-400">Fin:</span> {new Date(campaign.ends_at).toLocaleDateString("es-AR")}</span>
           )}
-          {campaign.channels && campaign.channels.length > 0 && (
-            <span><span className="text-gray-400">Canales:</span> {campaign.channels.join(", ")}</span>
+          {campaign.brief?.channels && campaign.brief.channels.length > 0 && (
+            <span><span className="text-gray-400">Canales:</span> {campaign.brief.channels.join(", ")}</span>
           )}
         </div>
 

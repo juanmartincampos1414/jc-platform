@@ -9,10 +9,9 @@ type Campaign = {
   id: string
   name: string
   status: string
-  start_date: string | null
-  end_date: string | null
-  objective: string | null
-  channels: string[] | null
+  starts_at: string | null
+  ends_at: string | null
+  brief: { objective?: string; channels?: string[] } | null
   brand_id: string
   asset_count: number
   decision_count: number
@@ -100,15 +99,15 @@ export default function CampaignsPage() {
                   <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize", STATUS_STYLES[c.status] ?? STATUS_STYLES.draft)}>
                     {c.status}
                   </span>
-                  {c.start_date && (
+                  {c.starts_at && (
                     <span className="text-xs text-gray-400">
-                      {new Date(c.start_date).toLocaleDateString("es-AR", { month: "short", year: "numeric" })}
+                      {new Date(c.starts_at).toLocaleDateString("es-AR", { month: "short", year: "numeric" })}
                     </span>
                   )}
                 </div>
                 <h2 className="font-semibold text-gray-900 text-base truncate">{c.name}</h2>
-                {c.objective && (
-                  <p className="text-sm text-gray-400 mt-0.5 truncate">{c.objective}</p>
+                {c.brief?.objective && (
+                  <p className="text-sm text-gray-400 mt-0.5 truncate">{c.brief.objective}</p>
                 )}
               </div>
               <ChevronRight size={18} className="text-gray-300 group-hover:text-gray-500 transition shrink-0 mt-1" />

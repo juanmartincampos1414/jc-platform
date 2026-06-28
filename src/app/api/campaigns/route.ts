@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data: campaigns, error } = await supabase
     .from("campaigns")
-    .select("id, name, status, start_date, end_date, objective, channels, created_at, updated_at, brand_id")
+    .select("id, name, status, starts_at, ends_at, brief, created_at, updated_at, brand_id")
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false })
 
