@@ -17,7 +17,7 @@ type CampaignData = {
     id: string; name: string; status: string
     starts_at: string | null; ends_at: string | null
     brief: { objective?: string; channels?: string[] } | null
-    brands: { name: string; industry: string | null } | null
+    brands: { name: string } | null
   }
   assets: Asset[]
   decisions: Decision[]

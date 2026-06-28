@@ -17,7 +17,7 @@ export async function GET(
   const [campaign, assets, decisions, memories, events] = await Promise.all([
     supabase
       .from("campaigns")
-      .select("id, name, status, starts_at, ends_at, brief, created_at, updated_at, brand_id, brands(name, industry)")
+      .select("id, name, status, starts_at, ends_at, brief, created_at, updated_at, brand_id, brands(name)")
       .eq("id", campaignId)
       .eq("workspace_id", workspaceId)
       .single(),
