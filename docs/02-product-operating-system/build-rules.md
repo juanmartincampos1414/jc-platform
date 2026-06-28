@@ -223,6 +223,20 @@ Seleccionar al menos uno: Schema Contract / Reflection / ADR / Domain Freeze / B
 
 ---
 
+## Regla 18 — Visible Intelligence Rule
+
+Toda capacidad nueva del backend debe responder una pregunta antes de considerarse terminada:
+
+> **¿Dónde la ve el usuario?**
+
+Si la respuesta es "en ningún lado" → la capacidad no está terminada. El backend generó valor. El producto todavía no lo entregó.
+
+**Aplicación directa:** cada nuevo engine, cada nuevo tipo de Memory, cada nuevo evento que el sistema emita debe tener una superficie visible correspondiente — un panel, un badge, una línea de texto, una explicación. Lo que el usuario no puede ver no puede valorar.
+
+**Corolario:** cuando se planifique un sprint de backend, incluir en el mismo sprint la superficie visible. No deferir la UI a "un sprint futuro".
+
+---
+
 ## Anti-patrones prohibidos
 
 Los siguientes patrones están prohibidos a partir de ahora:
