@@ -81,8 +81,8 @@ export async function extractAndStoreKnowledge(
     },
   })
 
-  // Pipeline: Knowledge → Decision (fire-and-forget)
-  generateAndStoreDecisions(supabase, workspaceId, brandId, campaignId)
+  // Pipeline: Knowledge → Decision (awaited — fire-and-forget no funciona en serverless)
+  await generateAndStoreDecisions(supabase, workspaceId, brandId, campaignId)
     .catch(err => console.error("[knowledge/engine] Decision generation error:", err))
 
   return objects
