@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { generateAndStoreDecisions } from "@/lib/decision/engine"
+import { generateAndStoreRecommendations } from "@/lib/recommendation/engine"
 
 // POST /api/decision/generate
 // Genera Decisions a partir del Knowledge activo de una Brand.
@@ -18,6 +19,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const decisions = await generateAndStoreDecisions(supabase, workspaceId, brandId, campaignId)
+
+    // Si hay campaignId, también derivar Recommendations desde las Decisions
+    if (campaignId) {
+      await generateAndStoreRecommendations(supabase, workspaceId, brandId, campaignId)
+    }
+
     return NextResponse.json({
       generated: decisions.length,
       types: decisions.map(d => d.decision_type),
