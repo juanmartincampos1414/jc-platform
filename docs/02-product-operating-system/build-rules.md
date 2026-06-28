@@ -177,6 +177,52 @@ Formato en `/docs/09-decisions/ADR-NNN-titulo.md`.
 
 ---
 
+## Regla 16 — Domain Enum Rule
+
+Toda modificación de un enum del dominio obliga a revisar todos sus consumidores antes de deployar.
+
+**Flujo obligatorio:**
+
+```
+Dominio cambia (nuevo estado, nuevo tipo)
+        ↓
+Actualizar Schema Contract
+        ↓
+grep en codebase por el enum modificado
+        ↓
+Actualizar todos los mappings y CONFIG en UI
+        ↓
+Smoke Test del módulo afectado
+        ↓
+Deploy
+```
+
+**Por qué existe esta regla:** La regresión de Social Media en Sprint 5 demostró que el dominio puede evolucionar correctamente (Assets incorporó `draft`) mientras la UI sigue esperando el contrato anterior. El error no fue de React ni de Next — fue un bug de contrato. Nunca asumir que un enum permanece constante.
+
+**Aplicación:** Cualquier adición a `AssetStatus`, `PostStatus`, `MemoryType`, `DomainEvent`, `Channel`, `RecommendationStatus` u otros enums del dominio activa automáticamente esta regla.
+
+---
+
+## Regla 17 — Domain Evolution Rule
+
+Cada vez que el dominio evoluciona, responder tres preguntas antes de cerrar el sprint.
+
+**1. ¿Qué estructuras nuevas aparecieron?**
+
+Identificar: nuevos estados de enum, nuevas tablas, nuevas relaciones, nuevos campos obligatorios.
+
+**2. ¿Qué consumidores dejan de conocer el dominio?**
+
+Buscar: componentes de UI, API routes, adapters, engines, y prompts de IA que operan sobre las estructuras modificadas.
+
+**3. ¿Qué documento del Framework debe actualizarse?**
+
+Seleccionar al menos uno: Schema Contract / Reflection / ADR / Domain Freeze / Build Rules.
+
+**Regla:** Nunca actualizar únicamente el código. Un cambio de dominio sin documentación es deuda conceptual.
+
+---
+
 ## Anti-patrones prohibidos
 
 Los siguientes patrones están prohibidos a partir de ahora:
