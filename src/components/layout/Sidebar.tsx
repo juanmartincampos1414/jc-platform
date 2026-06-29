@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import {
   FileText, Calendar, TrendingUp, Users, Globe,
   Star, Settings, LogOut, ChevronDown, LayoutDashboard,
-  CreditCard, Shield, Sparkles, Target
+  CreditCard, Shield, Sparkles, Target, BrainCircuit
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -126,8 +126,24 @@ export default function Sidebar({
           )
         })}
 
-        {/* JClaude premium */}
+        {/* Executive Intelligence */}
         <div className="pt-3 mt-3 border-t border-white/5">
+          <Link
+            href={`${base}/executive`}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition",
+              pathname.startsWith(`${base}/executive`)
+                ? "bg-white/10 text-white"
+                : "text-white/50 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <BrainCircuit size={16} />
+            Executive
+          </Link>
+        </div>
+
+        {/* JClaude premium */}
+        <div className="pt-2">
           <Link
             href={`${base}/jclaude`}
             className={cn(
