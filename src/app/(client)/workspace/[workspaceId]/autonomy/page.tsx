@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import { Shield, RotateCcw, CheckCircle, XCircle, Clock, AlertTriangle, Info } from "lucide-react"
+import {
+  Shield, RotateCcw, CheckCircle, XCircle, Clock,
+  AlertTriangle, Info, ChevronRight, AlertCircle,
+} from "lucide-react"
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type PolicyLevel = 0 | 1 | 2 | 3
 
 type AutonomyPolicy = {
-  level:   0 | 1 | 2 | 3
-  class_a: 0 | 1 | 2 | 3
-  class_b: 0 | 1 | 2 | 3
-  class_c: 0 | 1 | 2 | 3
+  level:   PolicyLevel
+  class_a: PolicyLevel
+  class_b: PolicyLevel
+  class_c: PolicyLevel
 }
 
 type AuditAction = {
@@ -19,66 +26,86 @@ type AuditAction = {
   entity_id:       string
   confidence:      number | null
   policy_level:    number
-  policy_snapshot: AutonomyPolicy
   payload:         Record<string, unknown>
   result:          "executed" | "failed" | "reverted"
-  error_message:   string | null
   reverted_at:     string | null
-  triggered_by:    string
   created_at:      string
 }
 
-const LEVEL_LABELS: Record<number, string> = {
-  0: "Solo observación",
-  1: "Solo recomendaciones",
-  2: "Requiere aprobación",
-  3: "Autónomo",
+const DEFAULT_POLICY: AutonomyPolicy = { level: 1, class_a: 1, class_b: 1, class_c: 0 }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const LEVEL_META: Record<PolicyLevel, { label: string; color: string; bg: string }> = {
+  0: { label: "Solo observación",      color: "text-white/40",  bg: "bg-white/5"       },
+  1: { label: "Recomendaciones",        color: "text-blue-400",  bg: "bg-blue-500/10"   },
+  2: { label: "Requiere aprobación",    color: "text-yellow-400",bg: "bg-yellow-500/10" },
+  3: { label: "Autónomo",               color: "text-green-400", bg: "bg-green-500/10"  },
 }
 
-const LEVEL_COLORS: Record<number, string> = {
-  0: "text-white/40",
-  1: "text-blue-400",
-  2: "text-yellow-400",
-  3: "text-green-400",
+const CLASS_META: Record<"A" | "B" | "C", { label: string; desc: string; locked?: boolean }> = {
+  A: { label: "Clase A",  desc: "Bajo riesgo · programar publicaciones, actualizar borradores" },
+  B: { label: "Clase B",  desc: "Riesgo medio · publicar automáticamente, aprobar assets" },
+  C: { label: "Clase C",  desc: "Riesgo alto · presupuestos, campañas, comunicaciones masivas", locked: true },
 }
 
-function ResultIcon({ result }: { result: string }) {
-  if (result === "executed") return <CheckCircle size={14} className="text-green-400 shrink-0" />
-  if (result === "failed")   return <XCircle size={14} className="text-red-400 shrink-0" />
-  return <RotateCcw size={14} className="text-yellow-400 shrink-0" />
+function formatActionType(type: string): string {
+  const map: Record<string, string> = {
+    "auto-schedule-approved-asset":        "Programación automática de asset",
+    "revert:auto-schedule-approved-asset": "Reversión de programación",
+  }
+  return map[type] ?? type
 }
+
+// ─── PolicyLevelSelector ──────────────────────────────────────────────────────
 
 function PolicyLevelSelector({
-  label, value, onChange, locked,
+  classKey, value, onChange,
 }: {
-  label: string
-  value: number
-  onChange: (v: number) => void
-  locked?: boolean
+  classKey: "global" | "A" | "B" | "C"
+  value: PolicyLevel
+  onChange: (v: PolicyLevel) => void
 }) {
+  const locked = classKey === "C"
+  const meta   = classKey === "global" ? null : CLASS_META[classKey as "A" | "B" | "C"]
+  const active = LEVEL_META[value]
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-white/70">{label}</span>
-        <span className={`text-xs font-semibold ${LEVEL_COLORS[value]}`}>
-          Nivel {value} — {LEVEL_LABELS[value]}
+    <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4 space-y-3">
+      {/* Class header */}
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-white">
+            {classKey === "global" ? "Nivel global" : meta?.label}
+          </p>
+          {meta && (
+            <p className="text-xs text-white/40 mt-0.5">{meta.desc}</p>
+          )}
+        </div>
+        <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${active.bg} ${active.color}`}>
+          {active.label}
         </span>
       </div>
-      <div className="flex gap-1">
-        {[0, 1, 2, 3].map(level => {
-          const isDisabled = locked && level === 3
+
+      {/* Level buttons */}
+      <div className="grid grid-cols-4 gap-1.5">
+        {([0, 1, 2, 3] as PolicyLevel[]).map(level => {
+          const isLocked   = locked && level === 3
+          const isSelected = value === level
+          const m          = LEVEL_META[level]
           return (
             <button
               key={level}
-              onClick={() => !isDisabled && onChange(level)}
-              disabled={isDisabled}
+              onClick={() => !isLocked && onChange(level)}
+              disabled={isLocked}
+              title={isLocked ? "Clase C nunca puede ser Autónoma" : m.label}
               className={`
-                flex-1 py-1.5 rounded text-xs font-semibold transition
-                ${value === level
-                  ? "bg-[#FFE600] text-[#0A0A0A]"
-                  : isDisabled
-                    ? "bg-white/5 text-white/20 cursor-not-allowed"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70"
+                py-2 rounded-lg text-xs font-bold transition
+                ${isSelected
+                  ? `${m.bg} ${m.color} ring-1 ring-inset ring-white/20`
+                  : isLocked
+                    ? "bg-white/[0.02] text-white/15 cursor-not-allowed"
+                    : "bg-white/[0.04] text-white/30 hover:bg-white/10 hover:text-white/60"
                 }
               `}
             >
@@ -87,80 +114,109 @@ function PolicyLevelSelector({
           )
         })}
       </div>
+      <div className="grid grid-cols-4 gap-1.5 px-0.5">
+        {([0, 1, 2, 3] as PolicyLevel[]).map(level => (
+          <p key={level} className="text-[9px] text-white/20 text-center leading-tight">
+            {LEVEL_META[level].label}
+          </p>
+        ))}
+      </div>
+
       {locked && (
-        <p className="text-[10px] text-yellow-400/60 flex items-center gap-1">
-          <AlertTriangle size={10} />
+        <div className="flex items-center gap-1.5 text-[11px] text-yellow-400/70">
+          <AlertTriangle size={11} />
           Clase C no puede ser Autónoma — riesgo alto
-        </p>
+        </div>
       )}
     </div>
   )
 }
 
-function formatActionType(type: string): string {
-  const map: Record<string, string> = {
-    "auto-schedule-approved-asset":         "Programación automática",
-    "revert:auto-schedule-approved-asset":  "Revertir programación",
-  }
-  return map[type] ?? type
+// ─── ResultIcon ───────────────────────────────────────────────────────────────
+
+function ResultIcon({ result }: { result: string }) {
+  if (result === "executed") return <CheckCircle size={14} className="text-green-400 shrink-0" />
+  if (result === "failed")   return <XCircle     size={14} className="text-red-400 shrink-0"   />
+  return <RotateCcw size={14} className="text-yellow-400 shrink-0" />
 }
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AutonomyPage() {
   const { workspaceId } = useParams<{ workspaceId: string }>()
 
-  const [policy, setPolicy]     = useState<AutonomyPolicy | null>(null)
-  const [draft, setDraft]       = useState<AutonomyPolicy | null>(null)
-  const [actions, setActions]   = useState<AuditAction[]>([])
-  const [saving, setSaving]     = useState(false)
-  const [saved, setSaved]       = useState(false)
+  const [policy,    setPolicy]    = useState<AutonomyPolicy>(DEFAULT_POLICY)
+  const [draft,     setDraft]     = useState<AutonomyPolicy>(DEFAULT_POLICY)
+  const [actions,   setActions]   = useState<AuditAction[]>([])
+  const [saving,    setSaving]    = useState(false)
+  const [saveMsg,   setSaveMsg]   = useState<{ ok: boolean; text: string } | null>(null)
   const [reverting, setReverting] = useState<string | null>(null)
-  const [loading, setLoading]   = useState(true)
+  const [loading,   setLoading]   = useState(true)
+  const [loadErr,   setLoadErr]   = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/autonomy/policy?workspaceId=${workspaceId}`).then(r => r.json()),
       fetch(`/api/autonomy/actions?workspaceId=${workspaceId}`).then(r => r.json()),
     ]).then(([policyRes, actionsRes]) => {
-      if (policyRes.policy) {
+      if (policyRes.error) {
+        setLoadErr(`No se pudo cargar la política: ${policyRes.error}`)
+      } else if (policyRes.policy) {
         setPolicy(policyRes.policy)
         setDraft(policyRes.policy)
       }
       if (actionsRes.actions) {
         setActions(actionsRes.actions)
       }
+    }).catch(err => {
+      setLoadErr(`Error de red: ${err.message}`)
     }).finally(() => setLoading(false))
   }, [workspaceId])
 
   async function savePolicy() {
-    if (!draft) return
     setSaving(true)
-    const res = await fetch("/api/autonomy/policy", {
-      method:  "PUT",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ workspaceId, policy: draft }),
-    })
-    const data = await res.json()
-    if (data.success) {
-      setPolicy(draft)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+    setSaveMsg(null)
+    try {
+      const res  = await fetch("/api/autonomy/policy", {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ workspaceId, policy: draft }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setPolicy(draft)
+        setSaveMsg({ ok: true, text: "Política guardada" })
+        setTimeout(() => setSaveMsg(null), 4000)
+      } else {
+        setSaveMsg({ ok: false, text: data.error ?? "No se pudo guardar" })
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error de red"
+      setSaveMsg({ ok: false, text: msg })
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   async function revertAction(actionId: string) {
     setReverting(actionId)
-    const res = await fetch(`/api/autonomy/actions/${actionId}/revert`, { method: "POST" })
-    if (res.ok) {
-      setActions(prev => prev.map(a =>
-        a.id === actionId ? { ...a, result: "reverted", reverted_at: new Date().toISOString() } : a
-      ))
+    try {
+      const res = await fetch(`/api/autonomy/actions/${actionId}/revert`, { method: "POST" })
+      if (res.ok) {
+        setActions(prev => prev.map(a =>
+          a.id === actionId
+            ? { ...a, result: "reverted" as const, reverted_at: new Date().toISOString() }
+            : a
+        ))
+      }
+    } finally {
+      setReverting(null)
     }
-    setReverting(null)
   }
 
-  const isDirty = draft && policy && JSON.stringify(draft) !== JSON.stringify(policy)
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(policy)
 
+  // ── Loading ──
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
@@ -170,104 +226,142 @@ export default function AutonomyPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
+    <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex items-start gap-4">
-        <div className="w-10 h-10 rounded-xl bg-[#FFE600]/10 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-[#FFE600]/10 flex items-center justify-center shrink-0 mt-0.5">
           <Shield size={20} className="text-[#FFE600]" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-white">Política de Autonomía</h1>
           <p className="text-sm text-white/40 mt-0.5">
-            Define hasta dónde el sistema puede actuar por su cuenta en este workspace.
+            Define hasta dónde puede actuar el sistema en este workspace.
           </p>
         </div>
       </div>
 
-      {/* Info banner */}
-      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex gap-3">
-        <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
-        <div className="text-sm text-white/60 space-y-1">
-          <p>Toda acción autónoma requiere tres condiciones: <span className="text-white/80">confidence suficiente</span>, <span className="text-white/80">política habilitada</span> y <span className="text-white/80">clase de acción autorizada</span>.</p>
-          <p>Esta página controla la segunda condición. La autoridad siempre pertenece al cliente.</p>
-        </div>
-      </div>
-
-      {/* Policy config */}
-      {draft && (
-        <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
-          <div className="px-5 py-4 border-b border-white/10">
-            <h2 className="text-sm font-semibold text-white">Configuración de política</h2>
-          </div>
-          <div className="px-5 py-5 space-y-5">
-            <PolicyLevelSelector
-              label="Nivel global"
-              value={draft.level}
-              onChange={v => setDraft(d => d ? { ...d, level: v as 0|1|2|3 } : d)}
-            />
-            <div className="border-t border-white/5 pt-4 space-y-4">
-              <p className="text-[11px] text-white/30 uppercase tracking-widest font-semibold">Nivel por clase de acción</p>
-              <PolicyLevelSelector
-                label="Clase A — Bajo riesgo (programar publicaciones, actualizar borradores)"
-                value={draft.class_a}
-                onChange={v => setDraft(d => d ? { ...d, class_a: v as 0|1|2|3 } : d)}
-              />
-              <PolicyLevelSelector
-                label="Clase B — Riesgo medio (publicar automáticamente, aprobar assets)"
-                value={draft.class_b}
-                onChange={v => setDraft(d => d ? { ...d, class_b: v as 0|1|2|3 } : d)}
-              />
-              <PolicyLevelSelector
-                label="Clase C — Riesgo alto (presupuestos, campañas, comunicaciones masivas)"
-                value={draft.class_c}
-                onChange={v => setDraft(d => d ? { ...d, class_c: v as 0|1|2|3 } : d)}
-                locked
-              />
-            </div>
-          </div>
-          <div className="px-5 py-4 border-t border-white/10 flex items-center justify-between">
-            <div className="text-xs text-white/30">
-              {saved ? (
-                <span className="text-green-400">Política guardada</span>
-              ) : isDirty ? (
-                <span className="text-yellow-400">Cambios sin guardar</span>
-              ) : (
-                "Sin cambios pendientes"
-              )}
-            </div>
-            <button
-              onClick={savePolicy}
-              disabled={!isDirty || saving}
-              className="px-4 py-2 rounded-lg bg-[#FFE600] text-[#0A0A0A] text-sm font-bold disabled:opacity-40 transition"
-            >
-              {saving ? "Guardando..." : "Guardar política"}
-            </button>
+      {/* ── Load error ── */}
+      {loadErr && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex gap-3">
+          <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-400">Error al cargar la política</p>
+            <p className="text-xs text-white/50 mt-0.5">{loadErr}</p>
+            <p className="text-xs text-white/30 mt-1">
+              Si la migración 013 no fue aplicada todavía, la columna{" "}
+              <code className="text-white/50">autonomy_policy</code> no existe en la DB.
+            </p>
           </div>
         </div>
       )}
 
-      {/* Audit trail */}
+      {/* ── Info banner ── */}
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex gap-3">
+        <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
+        <div className="text-sm text-white/60 space-y-1">
+          <p>
+            Toda acción autónoma requiere{" "}
+            <span className="text-white/80">tres condiciones simultáneas</span>:{" "}
+            confidence suficiente, política habilitada y clase autorizada.
+          </p>
+          <p className="text-xs text-white/40">
+            Esta página controla la segunda condición. La autoridad siempre pertenece al cliente.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Policy config ── */}
+      <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/10">
+          <h2 className="text-sm font-semibold text-white">Configuración de política</h2>
+          <p className="text-xs text-white/30 mt-0.5">
+            Los cambios no tienen efecto hasta presionar "Guardar".
+          </p>
+        </div>
+
+        <div className="px-5 py-5 space-y-3">
+          <PolicyLevelSelector
+            classKey="global"
+            value={draft.level}
+            onChange={v => setDraft(d => ({ ...d, level: v }))}
+          />
+
+          <div className="flex items-center gap-2 py-1">
+            <div className="flex-1 h-px bg-white/5" />
+            <p className="text-[10px] text-white/20 uppercase tracking-widest font-semibold">
+              Override por clase de acción
+            </p>
+            <div className="flex-1 h-px bg-white/5" />
+          </div>
+
+          <PolicyLevelSelector
+            classKey="A"
+            value={draft.class_a}
+            onChange={v => setDraft(d => ({ ...d, class_a: v }))}
+          />
+          <PolicyLevelSelector
+            classKey="B"
+            value={draft.class_b}
+            onChange={v => setDraft(d => ({ ...d, class_b: v }))}
+          />
+          <PolicyLevelSelector
+            classKey="C"
+            value={draft.class_c}
+            onChange={v => setDraft(d => ({ ...d, class_c: v }))}
+          />
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-white/10 flex items-center justify-between gap-3">
+          <div className="text-xs min-w-0">
+            {saveMsg ? (
+              <span className={saveMsg.ok ? "text-green-400" : "text-red-400"}>
+                {saveMsg.ok ? "✓ " : "✗ "}{saveMsg.text}
+              </span>
+            ) : isDirty ? (
+              <span className="text-yellow-400">Cambios sin guardar</span>
+            ) : (
+              <span className="text-white/20">Sin cambios pendientes</span>
+            )}
+          </div>
+          <button
+            onClick={savePolicy}
+            disabled={!isDirty || saving}
+            className="shrink-0 px-5 py-2 rounded-lg bg-[#FFE600] text-[#0A0A0A] text-sm font-bold disabled:opacity-30 transition hover:bg-yellow-300"
+          >
+            {saving ? "Guardando…" : "Guardar política"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Audit trail ── */}
       <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">Historial de acciones autónomas</h2>
-          <span className="text-xs text-white/30">{actions.length} registro{actions.length !== 1 ? "s" : ""}</span>
+          <span className="text-xs text-white/30">
+            {actions.length} registro{actions.length !== 1 ? "s" : ""}
+          </span>
         </div>
 
         {actions.length === 0 ? (
-          <div className="px-5 py-10 text-center">
-            <Clock size={24} className="text-white/20 mx-auto mb-3" />
-            <p className="text-sm text-white/30">Todavía no hay acciones autónomas registradas.</p>
+          <div className="px-5 py-12 text-center">
+            <Clock size={28} className="text-white/15 mx-auto mb-3" />
+            <p className="text-sm text-white/30">No hay acciones autónomas registradas.</p>
             <p className="text-xs text-white/20 mt-1">
-              Cuando el sistema ejecute su primera acción aparecerá aquí.
+              Configura Clase A en nivel 3 y aprueba un asset con fecha futura para ver la primera.
             </p>
           </div>
         ) : (
           <div className="divide-y divide-white/5">
             {actions.map(action => (
               <div key={action.id} className="px-5 py-4 flex items-start gap-3">
-                <div className="mt-0.5"><ResultIcon result={action.result} /></div>
-                <div className="flex-1 min-w-0">
+                <div className="mt-0.5">
+                  <ResultIcon result={action.result} />
+                </div>
+
+                <div className="flex-1 min-w-0 space-y-1">
+                  {/* Title row */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-white">
                       {formatActionType(action.action_type)}
@@ -284,27 +378,48 @@ export default function AutonomyPage() {
                        action.result === "reverted" ? "Revertido" : "Fallido"}
                     </span>
                   </div>
-                  <div className="mt-1 text-xs text-white/40 space-y-0.5">
-                    <div>
-                      Política nivel {action.policy_level} · {action.entity_type} ·{" "}
+
+                  {/* Meta row */}
+                  <div className="flex items-center gap-3 text-xs text-white/30 flex-wrap">
+                    <span>Política nivel {action.policy_level}</span>
+                    <ChevronRight size={10} className="text-white/15" />
+                    <span>{action.entity_type}</span>
+                    <ChevronRight size={10} className="text-white/15" />
+                    <span>
                       {new Date(action.created_at).toLocaleString("es-AR", {
+                        day: "2-digit", month: "short", year: "numeric",
+                        hour: "2-digit", minute: "2-digit",
+                      })}
+                    </span>
+                    {action.confidence != null && (
+                      <>
+                        <ChevronRight size={10} className="text-white/15" />
+                        <span>conf. {Math.round(action.confidence * 100)}%</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Payload */}
+                  {action.payload?.before != null && action.payload?.after != null && (
+                    <div className="text-xs text-white/25 font-mono">
+                      {String(JSON.stringify(action.payload.before))}
+                      {" → "}
+                      {String(JSON.stringify(action.payload.after))}
+                    </div>
+                  )}
+
+                  {/* Reverted at */}
+                  {action.reverted_at && (
+                    <div className="text-xs text-yellow-400/60 flex items-center gap-1">
+                      <RotateCcw size={10} />
+                      Revertido el {new Date(action.reverted_at).toLocaleString("es-AR", {
                         day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
                       })}
                     </div>
-                    {action.payload?.before != null && action.payload?.after != null && (
-                      <div className="text-white/30">
-                        {String(JSON.stringify(action.payload.before))} → {String(JSON.stringify(action.payload.after))}
-                      </div>
-                    )}
-                    {action.reverted_at && (
-                      <div className="text-yellow-400/60">
-                        Revertido el {new Date(action.reverted_at).toLocaleString("es-AR", {
-                          day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
+
+                {/* Revert button */}
                 {action.result === "executed" && (
                   <button
                     onClick={() => revertAction(action.id)}
@@ -312,7 +427,7 @@ export default function AutonomyPage() {
                     className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-xs text-white/40 hover:text-white hover:border-white/20 transition disabled:opacity-40"
                   >
                     <RotateCcw size={12} />
-                    {reverting === action.id ? "Revirtiendo..." : "Revertir"}
+                    {reverting === action.id ? "Revirtiendo…" : "Revertir"}
                   </button>
                 )}
               </div>
@@ -320,6 +435,7 @@ export default function AutonomyPage() {
           </div>
         )}
       </div>
+
     </div>
   )
 }
