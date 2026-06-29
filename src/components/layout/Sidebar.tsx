@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import {
   FileText, Calendar, TrendingUp, Users, Globe,
   Star, Settings, LogOut, ChevronDown, LayoutDashboard,
-  CreditCard, Shield, Sparkles, Target, BrainCircuit
+  CreditCard, Shield, Sparkles, Target, BrainCircuit, Zap
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -190,6 +190,18 @@ export default function Sidebar({
           >
             <Shield size={16} />
             Equipo & Permisos
+          </Link>
+          <Link
+            href={`${base}/autonomy`}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition",
+              pathname.startsWith(`${base}/autonomy`)
+                ? "bg-[#FFE600] text-[#0A0A0A]"
+                : "text-white/50 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <Zap size={16} />
+            Autonomía
           </Link>
         </div>
 

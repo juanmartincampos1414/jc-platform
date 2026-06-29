@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { updateAssetStatus } from "@/lib/adapters/assets"
 import { emitActivity } from "@/lib/activity"
 import type { AssetStatus } from "@/lib/types/domain"
+import { autoScheduleApprovedAsset } from "@/lib/autonomy/executor"
 
 // Mapa de status legacy (UI) → status de dominio (assets)
 const STATUS_MAP: Record<string, AssetStatus> = {
@@ -80,6 +81,15 @@ export async function PATCH(
       user_id:      user.id,
       content:      comment.trim(),
     })
+  }
+
+  // Autonomous action — fire-and-forget, nunca bloquea la respuesta al cliente
+  if (domainStatus === "approved") {
+    autoScheduleApprovedAsset(supabase, {
+      assetId:     id,
+      workspaceId,
+      confidence:  1.0,
+    }).catch(err => console.error("[autonomy] autoScheduleApprovedAsset error:", err))
   }
 
   return NextResponse.json({ success: true, source: "domain" })
