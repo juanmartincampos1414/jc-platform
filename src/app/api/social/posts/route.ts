@@ -82,6 +82,7 @@ function mapAssetStatusToLegacy(status: AssetStatus): string {
     approved:            "approved",
     rejected:            "rejected",
     needs_changes:       "needs_changes",
+    scheduled:           "approved",
     published:           "published",
     archived:            "published",
   }

@@ -45,6 +45,7 @@ export type AssetStatus =
   | 'approved'
   | 'rejected'
   | 'needs_changes'
+  | 'scheduled'
   | 'published'
   | 'archived'
 
