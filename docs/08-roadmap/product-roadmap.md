@@ -179,5 +179,40 @@ Una agencia distinta a JC AIgency puede hacer onboarding, agregar clientes y usa
 
 ---
 
+---
+
+## Sprint 9 — Autonomous Operations
+
+**Regla de trabajo:**
+
+> Sprint 9 no agrega inteligencia nueva. La inteligencia ya existe. Sprint 9 se concentra únicamente en ejecución.
+
+El primer ciclo cognitivo completo está en producción:
+
+```
+Knowledge → Decision → Recommendation → Learning → Strategy → Executive Intelligence
+```
+
+Sprint 9 pasa de *"el sistema sabe qué hacer"* a *"el sistema puede hacerlo"*.
+
+**Si durante Sprint 9 aparece una idea nueva de IA, nuevos modelos, nuevos agentes o nuevas capas de conocimiento** → registrar en backlog. No incluir en el sprint.
+
+**Objetivo:**
+Que determinadas Recommendations puedan convertirse en acciones automáticas bajo reglas definidas por el cliente, con supervisión configurable y audit trail completo.
+
+**Definition of Done:**
+- El cliente puede configurar reglas de automatización por workspace ("si el sistema recomienda X con confidence ≥ Y, ejecutar automáticamente").
+- Toda acción autónoma genera un evento en el audit trail.
+- El cliente puede revertir cualquier acción autónoma desde la UI.
+- El sistema no ejecuta nada que no haya sido previamente autorizado por una regla explícita.
+
+---
+
+## Backlog registrado (post Sprint 9)
+
+- `backlog-intelligent-onboarding.md` — Diagnóstico inicial de Brand al crear Workspace, para inicializar Brand Memory con contexto real antes de la primera campaña.
+
+---
+
 *Documento vive en `/docs/08-roadmap/product-roadmap.md`*  
 *Revisión mensual al finalizar cada versión*
