@@ -18,6 +18,11 @@ type PostPlan = {
   copy: string; hashtags: string; image_brief: string
 }
 
+type VideoPlan = {
+  date: string; time: string; network: string
+  caption: string; hashtags: string; brief: string
+}
+
 export async function POST(req: NextRequest) {
   const { workspaceId, month, year, profile, subscription } = await req.json()
 
@@ -33,8 +38,11 @@ export async function POST(req: NextRequest) {
   const endDate    = `${year}-${String(month).padStart(2, "0")}-${new Date(year, month, 0).getDate()}`
   const monthName  = new Date(year, month - 1, 1).toLocaleString("es-AR", { month: "long" })
   const daysInMonth = new Date(year, month, 0).getDate()
-  const postsLimit  = Math.min(subscription?.posts_limit || 8, 12)
-  const networks    = ["instagram", "facebook"].slice(0, subscription?.networks_limit || 2)
+  const postsLimit     = Math.min(subscription?.posts_limit || 8, 12)
+  const networks       = ["instagram", "facebook"].slice(0, subscription?.networks_limit || 2)
+  const videosPerWeek  = subscription?.videos_limit ?? 0
+  const weeksInMonth   = Math.ceil(daysInMonth / 7)
+  const videosPerMonth = videosPerWeek * weeksInMonth
 
   // ── 1. Resolver Brand y Campaign ──────────────────────────────
   let brand: import("@/lib/types/domain").Brand | undefined
@@ -134,16 +142,26 @@ export async function POST(req: NextRequest) {
 
 MARCA: ${profile.brand_name || "la marca"} | Rubro: ${profile.industry || "general"} | Tono: ${profile.tone || "profesional"} | Audiencia: ${profile.target_audience || "general"}
 ${knowledgeContext}${decisionContext}
-REGLAS:
+REGLAS POSTS:
 - Exactamente ${postsLimit} posts distribuidos en el mes (días 1 al ${daysInMonth})
 - Redes: ${networks.join(", ")}
 - Tipos: post, reel, story
 - Horarios: 09:00, 12:00, 18:00 o 20:00
 - Copy máximo 150 caracteres por post
 - Hashtags: máximo 8
-
+${videosPerMonth > 0 ? `
+REGLAS VIDEOS (Reels con generación IA):
+- Exactamente ${videosPerMonth} videos distribuidos en el mes (1 por semana aproximadamente)
+- Red: ${networks[0]} (canal principal)
+- Horario: 18:00 o 20:00 (mayor engagement)
+- Caption máximo 100 caracteres
+- Brief: descripción detallada y visual del video para generación con IA (qué se ve, movimiento, ambiente, colores, duración ~5s)
+` : ""}
 Respondé ÚNICAMENTE con este JSON, sin texto adicional, sin markdown:
-{"posts":[{"date":"${year}-${String(month).padStart(2,"0")}-01","time":"09:00","network":"instagram","post_type":"post","copy":"texto del post","hashtags":"#hash1 #hash2","image_brief":"descripción imagen"}]}`
+${videosPerMonth > 0
+  ? `{"posts":[{"date":"${year}-${String(month).padStart(2,"0")}-01","time":"09:00","network":"instagram","post_type":"post","copy":"texto","hashtags":"#hash1","image_brief":"descripción imagen"}],"videos":[{"date":"${year}-${String(month).padStart(2,"0")}-07","time":"18:00","network":"instagram","caption":"texto del video","hashtags":"#hash1","brief":"descripción detallada para IA del video"}]}`
+  : `{"posts":[{"date":"${year}-${String(month).padStart(2,"0")}-01","time":"09:00","network":"instagram","post_type":"post","copy":"texto del post","hashtags":"#hash1 #hash2","image_brief":"descripción imagen"}]}`
+}`
       }],
     })
   } catch (claudeErr) {
@@ -162,19 +180,22 @@ Respondé ÚNICAMENTE con este JSON, sin texto adicional, sin markdown:
 
   // ── 5. Parsear respuesta ──────────────────────────────────────
   const raw = message.content[0].type === "text" ? message.content[0].text : ""
-  let plan: PostPlan[] = []
+  let plan: PostPlan[]  = []
+  let videos: VideoPlan[] = []
 
-  try { const p = JSON.parse(raw.trim()); plan = p?.posts || [] } catch {}
-  if (plan.length === 0) {
+  const parseFull = (text: string) => {
+    try { const p = JSON.parse(text.trim()); plan = p?.posts || []; videos = p?.videos || []; return true } catch { return false }
+  }
+  if (!parseFull(raw)) {
     try {
       const lines = raw.split("\n").filter(l => !l.trim().startsWith("```"))
-      const p = JSON.parse(lines.join("\n").trim()); plan = p?.posts || []
+      parseFull(lines.join("\n").trim())
     } catch {}
   }
   if (plan.length === 0) {
     try {
       const s = raw.indexOf("{"); const e = raw.lastIndexOf("}")
-      if (s !== -1 && e !== -1) { const p = JSON.parse(raw.slice(s, e + 1)); plan = p?.posts || [] }
+      if (s !== -1 && e !== -1) parseFull(raw.slice(s, e + 1))
     } catch {}
   }
 
@@ -214,6 +235,48 @@ Respondé ÚNICAMENTE con este JSON, sin texto adicional, sin markdown:
   }
 
   // ── 7. Dual-write: Creative → Asset (cadena correcta) ─────────
+  // Video assets: insertar placeholders con status "generating".
+  // El cliente llama /api/jclaude/generate-video por cada uno en background.
+  type VideoAssetRef = { assetId: string; brief: string; network: string; caption: string }
+  const videoAssetRefs: VideoAssetRef[] = []
+
+  if (campaign && videos.length > 0) {
+    for (const v of videos) {
+      const { creativeId } = await insertCreativeForPost(supabase, {
+        workspaceId,
+        campaignId:  campaign.id,
+        content:     v.caption + (v.hashtags ? `\n\n${v.hashtags}` : ""),
+        agentJobId:  agentJob?.id,
+      }).catch(() => ({ creativeId: undefined, error: "video creative error" }))
+
+      if (!creativeId) continue
+
+      const { assetId } = await insertAssetForCreative(supabase, {
+        workspaceId,
+        campaignId:  campaign.id,
+        creativeId,
+        channel:     v.network,
+        assetType:   "video",
+        caption:     v.caption,
+        hashtags:    v.hashtags,
+        imageBrief:  v.brief,
+        scheduledAt: `${v.date}T${v.time}:00`,
+        agentJobId:  agentJob?.id,
+      }).catch(() => ({ assetId: undefined, error: "video asset error" }))
+
+      if (!assetId) continue
+
+      // Marcar como "generating" para que la UI muestre el estado correcto
+      await supabase.from("assets").update({
+        status:     "generating",
+        metadata:   { brief: v.brief, source: "seedance", video_pending: true },
+        updated_at: new Date().toISOString(),
+      }).eq("id", assetId)
+
+      videoAssetRefs.push({ assetId, brief: v.brief, network: v.network, caption: v.caption })
+    }
+  }
+
   if (campaign && inserted) {
     // Fire-and-forget — no bloquea la respuesta
     Promise.all(
@@ -337,5 +400,10 @@ Respondé ÚNICAMENTE con este JSON, sin texto adicional, sin markdown:
     }
   }
 
-  return NextResponse.json({ posts: inserted, count: inserted?.length })
+  return NextResponse.json({
+    posts:        inserted,
+    count:        inserted?.length,
+    videos:       videoAssetRefs,       // cliente llama generate-video por cada uno
+    videos_count: videoAssetRefs.length,
+  })
 }

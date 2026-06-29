@@ -7,9 +7,9 @@ const supabaseAdmin = createClient(
 )
 
 const PLAN_LIMITS = {
-  starter: { posts_limit: 8, networks_limit: 2, autopublish: false, trending: false },
-  pro: { posts_limit: 20, networks_limit: 4, autopublish: true, trending: false },
-  enterprise: { posts_limit: 999, networks_limit: 99, autopublish: true, trending: true },
+  starter:    { posts_limit: 8,   networks_limit: 2,  autopublish: false, trending: false, videos_limit: 1 },
+  pro:        { posts_limit: 20,  networks_limit: 4,  autopublish: true,  trending: false, videos_limit: 2 },
+  enterprise: { posts_limit: 999, networks_limit: 99, autopublish: true,  trending: true,  videos_limit: 3 },
 }
 
 export async function POST(req: NextRequest) {

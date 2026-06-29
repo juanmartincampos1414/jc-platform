@@ -292,6 +292,35 @@ Prioridad: Sprint 3
 
 ---
 
+## 19 · AI Experience
+
+```
+Capacidad: AI Experience
+Qué problema resuelve: Transformar inteligencia interna en comprensión para el usuario.
+  No genera inteligencia. La traduce.
+  El usuario puede observar qué sabe el sistema, por qué lo sabe, y cómo afecta las próximas decisiones.
+Usuarios: client_admin, client_user
+Entidades involucradas: Memory, Decision, Recommendation, Knowledge (abstracto — no tabla propia)
+Módulos actuales relacionados:
+  - Campaign Detail (Brand Intelligence Panel, Learning Timeline, toggle "¿Por qué?")
+  - KPI "Inteligencia" en overview de campaña
+Consumidores futuros:
+  - Dashboard (resumen ejecutivo de inteligencia por workspace)
+  - Executive Reports
+  - Notificaciones ("el sistema ajustó su criterio sobre tu canal principal")
+  - Email Summaries
+Estado actual: ✅ Sprint 6 — primera implementación completa en Campaign Detail
+Qué falta:
+  - Dashboard-level intelligence summary
+  - Notificaciones activas cuando cambia el conocimiento
+  - Executive panel (Sprint 8)
+  - Mobile
+Principio rector: Regla 18 (Visible Intelligence) + Regla 19 (Explainability First)
+Prioridad: Sprint 8 (Executive Intelligence)
+```
+
+---
+
 ## 18 · Admin Operations
 
 ```
@@ -314,7 +343,9 @@ Prioridad: Sprint 1
 | Sprint 0 | Identity & Access (fixes), Asset Management, Approval Workflow (real), Social Media Management (conectar DB), Legal Document Management (firmas reales) |
 | Sprint 1 | Workspace Management, Brand Setup, Content Generation (Storage + Seedance), Publishing (verificar), Influencer Workflow, Billing UI, Integration Management (encriptar tokens), Admin Operations |
 | Sprint 2 | Campaign Planning, Ads Management (Meta real), Performance Analytics |
-| Sprint 3 | AI Insights & Recommendations, Knowledge Capture |
+| Sprint 7 | Campaign Strategy (el sistema explica la estrategia completa de una campaña) |
+| Sprint 8 | Executive Intelligence (panel CMO: conclusiones, riesgos, oportunidades, próximas decisiones) — AI Experience scope |
+| Sprint 9 | Autonomous Operations (Recommendations → acciones automáticas con supervisión configurable) |
 
 ---
 

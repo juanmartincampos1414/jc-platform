@@ -1,6 +1,7 @@
 # Universal Workflow
 ## JC AI Agency · Product Operating System
 **Versión:** 0.1 · Junio 2026
+**Clasificación:** `[Core Primitive Candidate]` — ver `foundations-design.md`
 
 ---
 

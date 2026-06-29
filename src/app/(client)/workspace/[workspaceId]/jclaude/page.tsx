@@ -8,9 +8,9 @@ import {
 import { toast } from "sonner"
 
 const PLAN_CONFIG = {
-  starter: { name: "Starter", posts: 8, networks: 2, autopublish: false, trending: false },
-  pro: { name: "Pro", posts: 20, networks: 4, autopublish: true, trending: false },
-  enterprise: { name: "Enterprise", posts: 999, networks: 99, autopublish: true, trending: true },
+  starter:    { name: "Starter",    posts: 8,   networks: 2,  autopublish: false, trending: false, videos: 1 },
+  pro:        { name: "Pro",        posts: 20,  networks: 4,  autopublish: true,  trending: false, videos: 2 },
+  enterprise: { name: "Enterprise", posts: 999, networks: 99, autopublish: true,  trending: true,  videos: 3 },
 }
 type PlanKey = keyof typeof PLAN_CONFIG
 
@@ -59,6 +59,7 @@ type Subscription = {
   networks_limit: number
   autopublish: boolean
   trending: boolean
+  videos_limit: number
 }
 
 type Profile = {
@@ -177,7 +178,25 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
           const kept = prev.filter(p => !p.scheduled_at?.startsWith(`${year}-${String(month).padStart(2,"0")}`))
           return [...kept, ...data.posts]
         })
-        toast.success(`${data.posts.length} posts generados`)
+        const videoCount = data.videos_count ?? 0
+        if (videoCount > 0) {
+          toast.success(`${data.posts.length} posts + ${videoCount} videos generándose en background`)
+          // Generar cada video en background (fire-and-forget desde el cliente)
+          for (const v of (data.videos ?? [])) {
+            fetch("/api/jclaude/generate-video", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                assetId:     v.assetId,
+                brief:       v.brief,
+                network:     v.network,
+                workspaceId,
+              }),
+            }).catch(err => console.error("[generate-video] Error:", err))
+          }
+        } else {
+          toast.success(`${data.posts.length} posts generados`)
+        }
       } else {
         toast.error("No se generaron posts")
       }

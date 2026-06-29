@@ -3,6 +3,7 @@
 
 **Fecha:** 2026-06-28
 **Estado:** CONGELADO — no modificar sin ADR
+**Clasificación:** `[Core Primitive Candidate]` — ver `02-product-operating-system/foundations-design.md`
 
 ---
 

@@ -237,6 +237,55 @@ Si la respuesta es "en ningún lado" → la capacidad no está terminada. El bac
 
 ---
 
+## Regla 19 — Explainability First
+
+Toda nueva capacidad inteligente del sistema deberá responder tres preguntas antes de considerarse terminada:
+
+> **1. ¿Qué sabe el sistema?**
+> **2. ¿Por qué lo sabe?**
+> **3. ¿Cómo afecta la próxima decisión?**
+
+Si alguna respuesta no puede mostrarse al usuario de forma comprensible, la capacidad todavía no está terminada.
+
+No alcanza con que la IA sea correcta. Debe ser explicable.
+
+**Distinción con Regla 18:** Regla 18 (Visible Intelligence) exige que toda capacidad backend tenga una superficie visible. Regla 19 (Explainability First) exige que esa superficie explique el razonamiento — no solo muestre el resultado.
+
+- Regla 18: *¿Dónde lo ve el usuario?*
+- Regla 19: *¿Entiende el usuario por qué?*
+
+**Aplicación directa:** toda Recommendation, Decision, o Memory que el sistema genere debe poder responder las tres preguntas anteriores en lenguaje humano. El criterio de aceptación no es técnico. Es comprensión del usuario.
+
+---
+
+## Regla 20 — Intelligence Presentation Levels
+
+El mismo Knowledge Engine puede alimentar múltiples superficies. Lo que cambia no es la inteligencia — es la forma en que se presenta según el consumidor.
+
+**Tres niveles:**
+
+| Nivel | Consumidor | Contexto | Presentación |
+|---|---|---|---|
+| Operacional | Ejecutor de campaña | Está tomando una decisión ahora | Síntesis: Decision + Confidence + Why + Action |
+| Management | Líder de equipo | Quiere entender el estado general | Contexto: tendencias, cambios recientes, alertas |
+| Executive | CMO / dueño | Está tomando decisiones de negocio | Narrativa: evolución, implicancias, recomendación estratégica |
+
+**Regla de diseño:**
+
+Antes de construir cualquier superficie de inteligencia, identificar el nivel del consumidor. La respuesta determina el formato — no el volumen de datos disponibles.
+
+- Operacional → velocidad de comprensión. Menos es más.
+- Management → contexto suficiente para priorizar.
+- Executive → la inteligencia como historia del negocio.
+
+**Aplicación directa:** Campaign Detail es Nivel 1. Executive Intelligence Panel (Sprint 8) es Nivel 3. Dashboard puede ser Nivel 2. Diseñar cada uno con el formato correcto para su nivel — no con el formato que resulte más fácil de implementar.
+
+**Candidato RUN72 Core:** este patrón trasciende JC AI Agency. Todo producto construido sobre RUN72 Core tendrá el mismo problema: conocimiento único, experiencia diferenciada por consumidor. Este principio debe gobernar todos los futuros Executive Panels del Core.
+
+Ver documento completo: `docs/02-product-operating-system/intelligence-levels.md`
+
+---
+
 ## Anti-patrones prohibidos
 
 Los siguientes patrones están prohibidos a partir de ahora:

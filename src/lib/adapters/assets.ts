@@ -221,7 +221,7 @@ export async function insertAssetForCreative(
     sourceId?:    string
   }
 ): Promise<{ assetId?: string; error?: string }> {
-  const normalizedType    = (["post","reel","story","carousel"].includes(params.assetType) ? params.assetType : "post") as AssetType
+  const normalizedType    = (["post","reel","story","carousel","video"].includes(params.assetType) ? params.assetType : "post") as AssetType
   const normalizedChannel = (["instagram","facebook","tiktok","youtube","linkedin","twitter"].includes(params.channel) ? params.channel : "instagram") as Channel
 
   const { data, error } = await supabase
@@ -268,7 +268,7 @@ export async function insertAssetFromJClaudePost(
     sourceId?:    string
   }
 ): Promise<{ assetId?: string; error?: string }> {
-  const normalizedType    = (["post","reel","story","carousel"].includes(params.assetType) ? params.assetType : "post") as AssetType
+  const normalizedType    = (["post","reel","story","carousel","video"].includes(params.assetType) ? params.assetType : "post") as AssetType
   const normalizedChannel = (["instagram","facebook","tiktok","youtube","linkedin","twitter"].includes(params.channel) ? params.channel : "instagram") as Channel
 
   const { data, error } = await supabase

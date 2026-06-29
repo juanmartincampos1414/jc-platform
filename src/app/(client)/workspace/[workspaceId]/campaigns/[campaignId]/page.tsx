@@ -6,7 +6,8 @@ import {
   ArrowLeft, Layers, Brain, Zap, Activity,
   CheckCircle2, Clock, XCircle, AlertCircle,
   Image, Video, BookOpen,
-  ChevronDown, ChevronUp, Lightbulb, TrendingDown, TrendingUp, Minus
+  ChevronDown, ChevronUp, Lightbulb, TrendingDown, TrendingUp, Minus,
+  Map, RefreshCw, ShieldAlert, Target
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -466,6 +467,193 @@ function RecommendationCard({
   )
 }
 
+// ─── Types: Strategy ──────────────────────────────────────────
+
+type StrategySignal   = { signal: string; confidence: number; source: string }
+type StrategyAction   = { action: string; priority: string; rationale: string }
+type StrategyObject   = {
+  summary:                  string
+  objectives:               string[]
+  hypothesis:               string
+  strengths:                StrategySignal[]
+  risks:                    StrategySignal[]
+  expected_outcomes:        string[]
+  recommended_next_actions: StrategyAction[]
+  confidence:               number
+  generated_at:             string
+}
+
+// ─── CampaignStrategyPanel ────────────────────────────────────
+
+function CampaignStrategyPanel({
+  campaignId, workspaceId,
+}: { campaignId: string; workspaceId: string }) {
+  const [strategy,   setStrategy]   = useState<StrategyObject | null>(null)
+  const [narrative,  setNarrative]  = useState<string | null>(null)
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null)
+  const [loading,    setLoading]    = useState(true)
+  const [generating, setGenerating] = useState(false)
+
+  // Cargar estrategia guardada al montar
+  useEffect(() => {
+    fetch(`/api/campaigns/${campaignId}/strategy?workspaceId=${workspaceId}`)
+      .then(r => r.json())
+      .then(d => {
+        setStrategy(d.strategy ?? null)
+        setNarrative(d.narrative ?? null)
+        setGeneratedAt(d.generated_at ?? null)
+      })
+      .finally(() => setLoading(false))
+  }, [campaignId, workspaceId])
+
+  const generate = async () => {
+    setGenerating(true)
+    try {
+      const res  = await fetch(`/api/campaigns/${campaignId}/strategy`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ workspaceId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Error desconocido")
+      setStrategy(data.strategy)
+      setNarrative(data.narrative)
+      setGeneratedAt(data.strategy?.generated_at ?? null)
+    } catch (err) {
+      console.error("[strategy]", err)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  if (loading) {
+    return <div className="h-24 bg-gray-50 rounded-xl animate-pulse" />
+  }
+
+  const confidencePct = strategy ? Math.round(strategy.confidence * 100) : null
+
+  return (
+    <div className="space-y-5">
+
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          {generatedAt && (
+            <span>Generada {new Date(generatedAt).toLocaleDateString("es-AR")}</span>
+          )}
+          {confidencePct !== null && (
+            <span className={cn(
+              "font-semibold",
+              confidencePct >= 70 ? "text-green-600" : "text-yellow-600"
+            )}>· {confidencePct}% confianza</span>
+          )}
+        </div>
+        <button
+          onClick={generate}
+          disabled={generating}
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50 transition"
+        >
+          <RefreshCw size={12} className={generating ? "animate-spin" : ""} />
+          {strategy ? "Regenerar" : "Generar estrategia"}
+        </button>
+      </div>
+
+      {!strategy && !generating && (
+        <div className="text-sm text-gray-400 py-8 text-center">
+          El sistema aún no tiene una estrategia generada para esta campaña.<br />
+          Presioná "Generar estrategia" para construirla desde los datos disponibles.
+        </div>
+      )}
+
+      {generating && (
+        <div className="text-sm text-gray-400 py-8 text-center animate-pulse">
+          El Strategy Engine está analizando conocimientos, decisiones y recomendaciones…
+        </div>
+      )}
+
+      {strategy && !generating && (
+        <div className="space-y-5">
+
+          {/* Narrativa ejecutiva */}
+          {narrative && (
+            <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 leading-relaxed">
+              {narrative}
+            </div>
+          )}
+
+          {/* Hipótesis */}
+          <div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Hipótesis estratégica</div>
+            <p className="text-sm text-gray-600 italic">{strategy.hypothesis}</p>
+          </div>
+
+          {/* Fortalezas y Riesgos */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-green-700 mb-2">
+                <Target size={12} /> Fortalezas
+              </div>
+              <div className="space-y-2">
+                {strategy.strengths.length === 0 && (
+                  <p className="text-xs text-gray-400">Insuficiente evidencia.</p>
+                )}
+                {strategy.strengths.map((s, i) => (
+                  <div key={i} className="text-xs bg-green-50 border border-green-100 rounded-lg p-2.5">
+                    <div className="text-green-800">{s.signal}</div>
+                    <div className="text-green-500 mt-1">{Math.round(s.confidence * 100)}% confianza</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-red-600 mb-2">
+                <ShieldAlert size={12} /> Riesgos
+              </div>
+              <div className="space-y-2">
+                {strategy.risks.length === 0 && (
+                  <p className="text-xs text-gray-400">Sin riesgos identificados.</p>
+                )}
+                {strategy.risks.map((r, i) => (
+                  <div key={i} className="text-xs bg-red-50 border border-red-100 rounded-lg p-2.5">
+                    <div className="text-red-800">{r.signal}</div>
+                    <div className="text-red-400 mt-1">{Math.round(r.confidence * 100)}% confianza</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Próximas acciones */}
+          {strategy.recommended_next_actions.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Próximas acciones</div>
+              <div className="space-y-2">
+                {strategy.recommended_next_actions.map((a, i) => (
+                  <div key={i} className="flex items-start gap-2 text-sm border border-gray-100 rounded-xl p-3">
+                    <span className={cn(
+                      "text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 shrink-0",
+                      a.priority === "high"   ? "bg-red-100 text-red-700"    :
+                      a.priority === "medium" ? "bg-yellow-100 text-yellow-700" :
+                                                "bg-gray-100 text-gray-500"
+                    )}>
+                      {a.priority === "high" ? "ALTA" : a.priority === "medium" ? "MEDIA" : "BAJA"}
+                    </span>
+                    <div>
+                      <div className="font-medium text-gray-800">{a.action}</div>
+                      {a.rationale && <div className="text-xs text-gray-400 mt-0.5">{a.rationale}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────
 
 export default function CampaignDetailPage() {
@@ -596,6 +784,11 @@ export default function CampaignDetailPage() {
       {/* ── Brand Intelligence ── */}
       <Section title="Brand Intelligence" icon={Brain} count={knowledge.length} defaultOpen={true} accent={true}>
         <BrandIntelligencePanel knowledge={knowledge} activity={activity} />
+      </Section>
+
+      {/* ── Campaign Strategy ── */}
+      <Section title="Estrategia de Campaña" icon={Map} defaultOpen={true}>
+        <CampaignStrategyPanel campaignId={campaignId} workspaceId={workspaceId} />
       </Section>
 
       {/* ── Recommendations ── */}

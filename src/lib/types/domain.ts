@@ -31,6 +31,7 @@ export type AssetType =
   | 'reel'
   | 'story'
   | 'carousel'
+  | 'video'
   | 'ad'
   | 'video'
   | 'image'
