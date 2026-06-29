@@ -306,31 +306,56 @@ Los siguientes patrones están prohibidos a partir de ahora:
 
 El sistema nunca ejecuta una acción automáticamente basándose únicamente en su nivel de confidence.
 
-Para que una acción autónoma sea válida se requieren **dos condiciones simultáneas**:
+Para que una acción autónoma sea válida se requieren **tres condiciones simultáneas**:
 
 ```
 Confidence suficiente
         AND
 Autonomy Policy lo permite
+        AND
+Action Class está autorizada
 ```
 
-Ninguna condición reemplaza a la otra.
+Ninguna condición reemplaza a las otras. Las tres son obligatorias.
 
-**El sistema responde:** ¿qué conviene hacer?
-**El cliente responde:** ¿hasta dónde me autorizás a actuar por vos?
+**Las tres dimensiones pertenecen al dominio — ninguna al modelo:**
 
-**Cuatro niveles de Autonomy Policy:**
+| Dimensión | Pregunta que responde | Quién la define |
+|---|---|---|
+| Confidence | ¿La decisión es suficientemente buena? | El sistema |
+| Autonomy Policy | ¿Hasta dónde me autorizás a actuar? | El cliente |
+| Action Class | ¿Qué nivel de riesgo tiene esta acción? | El dominio del producto |
+
+---
+
+### Autonomy Policy — cuatro niveles
 
 | Nivel | Nombre | Comportamiento |
 |---|---|---|
 | 0 | Observation Only | El sistema observa. No recomienda. No ejecuta. |
 | 1 | Recommendations | El sistema recomienda. El usuario ejecuta. |
 | 2 | Approval Required | El sistema prepara la acción. Queda pendiente de aprobación humana. |
-| 3 | Autonomous | El sistema ejecuta acciones autorizadas por política. Siempre con audit trail. Siempre reversible. |
+| 3 | Autonomous | El sistema ejecuta acciones de las clases autorizadas. Audit trail completo. Siempre reversible. |
 
-**Aplicación directa:** antes de ejecutar cualquier acción autónoma, verificar explícitamente el nivel de Autonomy Policy del workspace. Si la política no permite el nivel de automatización requerido, la acción no se ejecuta — independientemente del confidence del sistema.
+---
 
-**Corolario:** la Autonomy Policy pertenece al cliente, no al modelo. Un cambio de modelo, un aumento de confidence, o una mejora del sistema nunca eleva automáticamente el nivel de autonomía. Solo el cliente puede hacer eso.
+### Action Class — tres clases de riesgo
+
+| Clase | Riesgo | Ejemplos |
+|---|---|---|
+| A — Low Risk | Bajo | Programar publicaciones, reordenar calendario, generar contenido, actualizar borradores |
+| B — Medium Risk | Medio | Publicar automáticamente, responder comentarios, aprobar assets |
+| C — High Risk | Alto | Modificar presupuestos, activar/detener campañas, cambiar audiencias, enviar comunicaciones masivas |
+
+Un cliente puede configurar, por ejemplo: Clase A → automática, Clase B → requiere aprobación, Clase C → nunca automática. Eso permite adopción gradual y reduce el riesgo de automatización significativamente.
+
+**Regla de diseño:** toda nueva acción autónoma que se agregue al sistema debe declarar su Action Class antes de implementarse. La clase no puede ser inferida por el modelo — es una decisión de dominio explícita.
+
+---
+
+**Aplicación directa:** antes de ejecutar cualquier acción autónoma, verificar las tres condiciones. Si alguna falla, la acción no se ejecuta.
+
+**Corolario:** la Autonomy Policy pertenece al cliente, no al modelo. La Action Class pertenece al dominio del producto, no al modelo. Un cambio de modelo, un aumento de confidence, o una mejora del sistema nunca modifica ninguna de las dos.
 
 ---
 

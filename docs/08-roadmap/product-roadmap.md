@@ -200,28 +200,39 @@ Sprint 9 pasa de *"el sistema sabe qué hacer"* a *"el sistema puede hacerlo"*.
 **Objetivo:**
 Que determinadas Recommendations puedan convertirse en acciones automáticas bajo reglas definidas por el cliente, con supervisión configurable y audit trail completo.
 
-**Concepto central — Autonomy Policy:**
+**Conceptos centrales — tres condiciones para toda acción autónoma:**
 
-La autonomía no depende de la confianza. Depende del permiso.
+```
+Confidence suficiente AND Autonomy Policy lo permite AND Action Class está autorizada
+```
 
-El sistema puede estar 99% seguro y aun así no tener autorización para actuar. Para ejecutar una acción autónoma se requieren dos condiciones simultáneas: `confidence suficiente AND Autonomy Policy lo permite`.
+Las tres son obligatorias. Ninguna reemplaza a las otras.
 
-La Autonomy Policy pertenece al cliente, no al modelo. Un cambio de modelo o un aumento de confidence nunca eleva automáticamente el nivel de autonomía.
+**Autonomy Policy** (decide el cliente):
 
 | Nivel | Nombre | Comportamiento |
 |---|---|---|
 | 0 | Observation Only | Observa. No recomienda. No ejecuta. |
 | 1 | Recommendations | Recomienda. El usuario ejecuta. |
 | 2 | Approval Required | Prepara la acción. Queda pendiente de aprobación. |
-| 3 | Autonomous | Ejecuta acciones autorizadas por política. Audit trail completo. Siempre reversible. |
+| 3 | Autonomous | Ejecuta acciones de las clases autorizadas. Audit trail completo. Siempre reversible. |
+
+**Action Class** (decide el dominio del producto):
+
+| Clase | Riesgo | Ejemplos |
+|---|---|---|
+| A — Low Risk | Bajo | Programar publicaciones, generar contenido, actualizar borradores |
+| B — Medium Risk | Medio | Publicar automáticamente, aprobar assets |
+| C — High Risk | Alto | Modificar presupuestos, activar/detener campañas, enviar comunicaciones masivas |
 
 **Definition of Done:**
-- Existe un `autonomy_policy` persistido por Workspace (nivel 0-3 + overrides por tipo de acción).
-- El sistema verifica la política antes de cada acción autónoma — confidence alone no alcanza.
-- Toda acción autónoma genera un evento inmutable en el audit trail (quién autorizó, confidence al momento, política vigente).
+- `autonomy_policy` persistido por Workspace: nivel global (0-3) + nivel por Action Class.
+- Toda acción autónoma declara su Action Class antes de ejecutarse.
+- El sistema verifica las tres condiciones antes de cada acción autónoma.
+- Toda acción autónoma genera un evento inmutable en el audit trail (política vigente, clase, confidence al momento).
 - El cliente puede revertir cualquier acción autónoma desde la UI.
-- El cliente puede cambiar el nivel de política desde la UI.
-- El sistema nunca ejecuta nada que no haya sido previamente autorizado por política explícita.
+- El cliente puede configurar la política desde la UI.
+- El sistema nunca ejecuta nada sin autorización explícita por política y clase.
 
 ---
 
