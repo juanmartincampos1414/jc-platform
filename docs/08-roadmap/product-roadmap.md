@@ -200,11 +200,28 @@ Sprint 9 pasa de *"el sistema sabe qué hacer"* a *"el sistema puede hacerlo"*.
 **Objetivo:**
 Que determinadas Recommendations puedan convertirse en acciones automáticas bajo reglas definidas por el cliente, con supervisión configurable y audit trail completo.
 
+**Concepto central — Autonomy Policy:**
+
+La autonomía no depende de la confianza. Depende del permiso.
+
+El sistema puede estar 99% seguro y aun así no tener autorización para actuar. Para ejecutar una acción autónoma se requieren dos condiciones simultáneas: `confidence suficiente AND Autonomy Policy lo permite`.
+
+La Autonomy Policy pertenece al cliente, no al modelo. Un cambio de modelo o un aumento de confidence nunca eleva automáticamente el nivel de autonomía.
+
+| Nivel | Nombre | Comportamiento |
+|---|---|---|
+| 0 | Observation Only | Observa. No recomienda. No ejecuta. |
+| 1 | Recommendations | Recomienda. El usuario ejecuta. |
+| 2 | Approval Required | Prepara la acción. Queda pendiente de aprobación. |
+| 3 | Autonomous | Ejecuta acciones autorizadas por política. Audit trail completo. Siempre reversible. |
+
 **Definition of Done:**
-- El cliente puede configurar reglas de automatización por workspace ("si el sistema recomienda X con confidence ≥ Y, ejecutar automáticamente").
-- Toda acción autónoma genera un evento en el audit trail.
+- Existe un `autonomy_policy` persistido por Workspace (nivel 0-3 + overrides por tipo de acción).
+- El sistema verifica la política antes de cada acción autónoma — confidence alone no alcanza.
+- Toda acción autónoma genera un evento inmutable en el audit trail (quién autorizó, confidence al momento, política vigente).
 - El cliente puede revertir cualquier acción autónoma desde la UI.
-- El sistema no ejecuta nada que no haya sido previamente autorizado por una regla explícita.
+- El cliente puede cambiar el nivel de política desde la UI.
+- El sistema nunca ejecuta nada que no haya sido previamente autorizado por política explícita.
 
 ---
 

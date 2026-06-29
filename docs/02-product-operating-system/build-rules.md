@@ -302,5 +302,37 @@ Los siguientes patrones están prohibidos a partir de ahora:
 
 ---
 
+## Regla 21 — Autonomy Requires Permission, Not Just Confidence
+
+El sistema nunca ejecuta una acción automáticamente basándose únicamente en su nivel de confidence.
+
+Para que una acción autónoma sea válida se requieren **dos condiciones simultáneas**:
+
+```
+Confidence suficiente
+        AND
+Autonomy Policy lo permite
+```
+
+Ninguna condición reemplaza a la otra.
+
+**El sistema responde:** ¿qué conviene hacer?
+**El cliente responde:** ¿hasta dónde me autorizás a actuar por vos?
+
+**Cuatro niveles de Autonomy Policy:**
+
+| Nivel | Nombre | Comportamiento |
+|---|---|---|
+| 0 | Observation Only | El sistema observa. No recomienda. No ejecuta. |
+| 1 | Recommendations | El sistema recomienda. El usuario ejecuta. |
+| 2 | Approval Required | El sistema prepara la acción. Queda pendiente de aprobación humana. |
+| 3 | Autonomous | El sistema ejecuta acciones autorizadas por política. Siempre con audit trail. Siempre reversible. |
+
+**Aplicación directa:** antes de ejecutar cualquier acción autónoma, verificar explícitamente el nivel de Autonomy Policy del workspace. Si la política no permite el nivel de automatización requerido, la acción no se ejecuta — independientemente del confidence del sistema.
+
+**Corolario:** la Autonomy Policy pertenece al cliente, no al modelo. Un cambio de modelo, un aumento de confidence, o una mejora del sistema nunca eleva automáticamente el nivel de autonomía. Solo el cliente puede hacer eso.
+
+---
+
 *Documento vive en `/docs/02-product-operating-system/build-rules.md`*  
 *Este documento se lee al inicio de cada sprint y antes de cada feature*
