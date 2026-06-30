@@ -1,5 +1,7 @@
 # Meta — Instagram Login setup (instagram_business_content_publish)
 
+**Estado:** ✅ Validado end-to-end el 2026-06-30 — conexión por Instagram Login + publicación real en `flips.ar` desde la app (ver `docs/capabilities/CAP-002-instagram-autopublish.md`). Pendiente: que App Review apruebe el permiso para habilitar cuentas de clientes. Deploy productivo: `dpl_5u6Tc1X9BSxf3tGCUNoXiMyJDMAv` (commit `1f816aa`).
+
 **Fecha:** 2026-06-30
 **Por qué:** App Review pedía la test call de `instagram_business_content_publish`, que **solo** se concede vía *Instagram API with Instagram Login* (`graph.instagram.com`). El path de Facebook Login (`instagram_content_publish`) nunca registra esa test call. Se agregó el flujo de Instagram Login en paralelo, sin tocar el de Facebook.
 
