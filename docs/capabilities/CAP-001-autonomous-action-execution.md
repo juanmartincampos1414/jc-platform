@@ -44,6 +44,34 @@ La capacidad pasa a `Validated` cuando, en producción real, se observa:
 
 Métrica de comportamiento sugerida: acciones Clase A ejecutadas autónomamente / total de acciones Clase A, antes vs. después de activar la política.
 
+## Definición de Validated — las 4 condiciones
+
+CAP-001 pasa a `Validated` solo si se demuestran las cuatro:
+
+1. El sistema **ejecuta** cuando corresponde (las tres condiciones se cumplen).
+2. El sistema **NO ejecuta** cuando no tiene autorización (política o clase no lo permiten).
+3. Toda ejecución queda **registrada en el Audit Trail** (evento inmutable).
+4. Toda ejecución **puede revertirse**.
+
+## Procedimiento de validación — cierre operativo Sprint 9
+
+QA funcional real en producción. Recién con los diez pasos completos, CAP-001 pasa a `Validated`:
+
+```
+1.  Aplicar Migration 013.
+2.  Confirmar workspaces.autonomy_policy.
+3.  Confirmar autonomous_actions.
+4.  Activar Class A → Level 3.
+5.  Ejecutar auto-schedule-approved-asset.
+6.  Confirmar que el Asset pasa automáticamente de approved a scheduled.
+7.  Confirmar Audit Trail completo.
+8.  Ejecutar Revert.
+9.  Confirmar reversión y nuevo evento.
+10. Ejecutar Regression QA.
+```
+
+La evidencia es la que cambia el estado. No el código: aunque exista, esté deployado y compile, CAP-001 permanece `Built` hasta que estos diez pasos estén verificados.
+
 ## Estado
 
 ```

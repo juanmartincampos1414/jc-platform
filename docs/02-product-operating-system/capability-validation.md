@@ -128,6 +128,12 @@ A partir de ahora se agrega una pieza más, **para todos los sprints futuros**: 
 
 Una capacidad no se considera terminada por estar `Built`. Se considera demostrada cuando llega a `Validated`.
 
+**La pregunta que cierra un Sprint:**
+
+> ¿Qué capacidad nueva obtuvo el cliente, y cómo demostramos —con evidencia— que realmente le cambió la forma de trabajar?
+
+Si se puede responder **con evidencia**, el Sprint está completo. Si solo se puede responder *"el código funciona"*, todavía no. El producto ya no crece por cantidad de funcionalidades, sino por cantidad de capacidades realmente validadas con clientes.
+
 ---
 
 ## Relación con RUN72 Core
