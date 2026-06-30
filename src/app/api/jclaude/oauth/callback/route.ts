@@ -70,20 +70,28 @@ export async function GET(req: NextRequest) {
       connections.push(conn)
     }
 
-    // 5. Save to jclaude_profiles
+    // 5. Save to jclaude_profiles — preservar credenciales existentes (ej: ig_login del flujo de Instagram Login)
     const supabase = await createClient()
+    const { data: existing } = await supabase
+      .from("jclaude_profiles")
+      .select("social_credentials, connected_networks")
+      .eq("workspace_id", workspaceId)
+      .single()
+
+    const prevSocial = (existing?.social_credentials as Record<string, unknown>) ?? {}
+    const networks = new Set<string>((existing?.connected_networks as string[]) ?? [])
+    networks.add("facebook")
+    if (connections.some(c => c.ig_account_id)) networks.add("instagram")
+
     await supabase.from("jclaude_profiles").upsert({
       workspace_id: workspaceId,
       social_credentials: {
+        ...prevSocial,
         fb_user_token: longToken,
         token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
         connections,
       },
-      connected_networks: connections.flatMap(c => {
-        const nets = ["facebook"]
-        if (c.ig_account_id) nets.push("instagram")
-        return nets
-      }).filter((v, i, a) => a.indexOf(v) === i),
+      connected_networks: Array.from(networks),
       updated_at: new Date().toISOString(),
     }, { onConflict: "workspace_id" })
 

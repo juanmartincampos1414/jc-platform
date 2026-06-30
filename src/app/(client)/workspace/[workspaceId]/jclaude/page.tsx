@@ -78,10 +78,18 @@ type Connection = {
   ig_username?: string
 }
 
+type IgLogin = {
+  ig_user_id: string
+  username?: string | null
+  access_token?: string
+  token_expires_at?: string
+}
+
 type SocialCredentials = {
   fb_user_token?: string
   token_expires_at?: string
   connections?: Connection[]
+  ig_login?: IgLogin
 }
 
 const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
@@ -134,6 +142,9 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
       const oauthResult = urlParams.get("oauth")
       if (oauthResult === "success") setOauthMsg("✓ Cuenta conectada correctamente")
       if (oauthResult === "error") setOauthMsg("✗ Error al conectar la cuenta")
+      const igOauthResult = urlParams.get("ig_oauth")
+      if (igOauthResult === "success") setOauthMsg("✓ Instagram conectado correctamente")
+      if (igOauthResult === "error") setOauthMsg("✗ Error al conectar Instagram")
 
       setLoading(false)
       if (subData.subscription) await loadPosts(p.workspaceId)
@@ -255,7 +266,28 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
     setPublishing(true)
     setPublishMsg("")
     try {
-      // Buscar la conexión correcta para la red del post
+      // Instagram vía Instagram Login (graph.instagram.com) si está conectado
+      if (post.network === "instagram" && socialCreds.ig_login?.ig_user_id) {
+        const res = await fetch("/api/jclaude/publish-instagram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            workspaceId,
+            copy: post.copy, hashtags: post.hashtags,
+            imageUrl: post.image_url || null,
+          }),
+        })
+        const data = await res.json()
+        if (data.success) {
+          setPublishMsg(`Publicado · ID ${data.post_id}`)
+          await handleUpdateStatus(post, "published")
+        } else {
+          setPublishMsg(data.error || "Error al publicar")
+        }
+        return
+      }
+
+      // Buscar la conexión correcta para la red del post (Facebook Login)
       const connections = socialCreds.connections || []
       const conn = connections.find((c: Connection) =>
         post.network === "instagram" ? !!c.ig_account_id : !!c.fb_page_id
@@ -375,7 +407,9 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
   // ── Connect panel ─────────────────────────────────────────────────────────
   if (showConnect) {
     const connections = socialCreds.connections || []
-    const isConnected = connections.length > 0
+    const igLogin = socialCreds.ig_login
+    const igConnected = !!igLogin?.ig_user_id
+    const isConnected = connections.length > 0 || igConnected
     return (
       <div className="p-8 max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
@@ -411,6 +445,19 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
                 </div>
               </div>
             ))}
+            {igConnected && (
+              <div className="border border-purple-200 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-900">Instagram Login</div>
+                    <div className="text-sm text-gray-500 mt-0.5 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-purple-500" /> @{igLogin?.username ?? igLogin?.ig_user_id} · publicación directa
+                    </div>
+                  </div>
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                </div>
+              </div>
+            )}
             <div className="text-xs text-gray-400">
               Token expira: {socialCreds.token_expires_at ? new Date(socialCreds.token_expires_at).toLocaleDateString("es-AR") : "—"}
             </div>
@@ -429,6 +476,15 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
             {isConnected ? "Reconectar con Facebook" : "Conectar con Facebook / Instagram"}
+          </a>
+
+          <a
+            href={`/api/jclaude/oauth/instagram/start?workspaceId=${workspaceId}`}
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
+            style={{ background: "linear-gradient(90deg, #F58529 0%, #DD2A7B 50%, #8134AF 100%)" }}
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.9.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.3.07 1.69.07 4.9s0 3.6-.07 4.9c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.3.06-1.69.07-4.9.07s-3.6 0-4.9-.07c-1.17-.05-1.8-.25-2.23-.41a3.7 3.7 0 0 1-1.38-.9 3.7 3.7 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23-.06-1.3-.07-1.69-.07-4.9s0-3.6.07-4.9c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41 1.3-.06 1.69-.07 4.9-.07zm0 1.8c-3.15 0-3.52.01-4.76.07-.9.04-1.39.2-1.71.32-.43.17-.74.37-1.06.69-.32.32-.52.63-.69 1.06-.13.32-.28.81-.32 1.71-.06 1.24-.07 1.61-.07 4.76s.01 3.52.07 4.76c.04.9.2 1.39.32 1.71.17.43.37.74.69 1.06.32.32.63.52 1.06.69.32.13.81.28 1.71.32 1.24.06 1.61.07 4.76.07s3.52-.01 4.76-.07c.9-.04 1.39-.2 1.71-.32.43-.17.74-.37 1.06-.69.32-.32.52-.63.69-1.06.13-.32.28-.81.32-1.71.06-1.24.07-1.61.07-4.76s-.01-3.52-.07-4.76c-.04-.9-.2-1.39-.32-1.71a2.86 2.86 0 0 0-.69-1.06 2.86 2.86 0 0 0-1.06-.69c-.32-.13-.81-.28-1.71-.32-1.24-.06-1.61-.07-4.76-.07zm0 3.06A4.94 4.94 0 1 0 12 16.94 4.94 4.94 0 0 0 12 7.06zm0 8.15A3.21 3.21 0 1 1 12 8.79a3.21 3.21 0 0 1 0 6.42zm6.3-8.35a1.15 1.15 0 1 1-2.3 0 1.15 1.15 0 0 1 2.3 0z"/></svg>
+            {igConnected ? `Reconectar Instagram${igLogin?.username ? ` (@${igLogin.username})` : ""}` : "Conectar con Instagram Login"}
           </a>
 
           {isConnected && (
