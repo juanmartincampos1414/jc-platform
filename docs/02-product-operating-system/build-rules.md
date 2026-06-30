@@ -385,5 +385,32 @@ Todo artefacto de método tiene dos estados de ciclo de vida que nunca se confun
 
 ---
 
+## Regla 23 — Capability Validation: construir no es validar
+
+Mientras construimos JC AI Agency, **el producto marca el ritmo y RUN72 aprende observando**. Cada Sprint responde primero *¿qué capacidad nueva obtiene el cliente?* y recién después *¿qué aprendió RUN72?*. El cliente siempre primero. Cualquier descubrimiento del Framework se documenta como Evidence Package y nunca frena la evolución del producto.
+
+Toda capacidad nueva pasa **Capability Validation** antes de considerarse terminada. No alcanza con que el código funcione: hay que demostrar que cambia cómo trabaja el cliente.
+
+Cada capacidad responde cuatro preguntas, desde el punto de vista del cliente (no técnico):
+
+| # | Pregunta | Cuidado |
+|---|---|---|
+| 1 | ¿Qué trabajo elimina? | Qué trabajo deja de existir — no qué automatiza |
+| 2 | ¿Qué decisión mejora? | Qué decisión concreta ayuda a tomar — no qué información muestra |
+| 3 | ¿Cómo sabemos que funcionó? | Evidencia observable, definida **antes** de construir — no opinión |
+| 4 | ¿Qué comportamiento esperamos del cliente? | El comportamiento que cambia, explícito |
+
+Toda capacidad importante tiene una **Capability Card** (`docs/capabilities/CAP-NNN-*.md`) con estado explícito:
+
+```
+Designed  →  Built  →  Frozen  →  Validated
+```
+
+Los dos últimos estados siguen la Regla 22. Una capacidad solo es `Validated` cuando existe evidencia observable de que cambió el comportamiento del cliente. **Built no implica Validated.**
+
+Ver `capability-validation.md`.
+
+---
+
 *Documento vive en `/docs/02-product-operating-system/build-rules.md`*  
 *Este documento se lee al inicio de cada sprint y antes de cada feature*
