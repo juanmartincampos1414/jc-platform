@@ -2,6 +2,7 @@
 ## RUN72 Core OS — Método para medir el impacto real de un producto sobre la operación de un cliente
 
 **Versión:** 1.0 · 2026-06-30
+**Estado:** `Frozen` — aún no `Validated` (ver `build-rules.md`, Regla 22). Se valida con el primer caso real.
 **Origen:** Product Review v1.0 — definición del método antes del primer caso real
 **Clasificación:** `[Core Primitive Candidate]` — ver `foundations-design.md`
 **Alcance:** JC AI Agency + cualquier producto construido sobre RUN72 Core OS

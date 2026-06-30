@@ -359,5 +359,31 @@ Un cliente puede configurar, por ejemplo: Clase A → automática, Clase B → r
 
 ---
 
+## Regla 22 — Frozen ≠ Validated
+
+Un método, framework o artefacto **bien diseñado no está validado**. Solo está listo para usarse. Validar es otra cosa: demostrar que funciona en la realidad.
+
+Todo artefacto de método tiene dos estados de ciclo de vida que nunca se confunden:
+
+| Estado | Significa | Cómo se alcanza |
+|---|---|---|
+| **Frozen** | Listo para usarse. Diseño cerrado y versionado, sin cliente. | Cuando el diseño está completo. |
+| **Validated** | Demostró funcionar en la realidad. | Cuando se usó al menos una vez en un caso real documentado. |
+
+**Frozen no implica Validated.** Un método puede estar Frozen durante semanas o meses antes de validarse. Creer que algo está validado solo porque está bien diseñado es exactamente el error que esta regla previene. RUN72 es estricto con esta diferencia: *Frozen = listo para usar; Validated = demostró funcionar en la realidad.*
+
+**Disciplina:**
+- Todo método/framework declara su estado explícitamente: `Frozen vX.Y` o `Validated vX.Y`.
+- Un artefacto solo pasa a `Validated vX.Y` cuando existe al menos un caso real que lo usó.
+- Si durante la validación el método falla → **no se modifica la versión Frozen**. Se abre la siguiente versión (`vX.Y+1`), se registra la evidencia, se actualiza el ADR si corresponde y se emite un Evidence Package si aparece un principio nuevo. La trazabilidad de la evolución se preserva siempre.
+
+**Estado de referencia actual:**
+
+| Artefacto | Estado |
+|---|---|
+| Product Review Framework v1.0 | `Frozen` — aún no `Validated` (pendiente primer caso real) |
+
+---
+
 *Documento vive en `/docs/02-product-operating-system/build-rules.md`*  
 *Este documento se lee al inicio de cada sprint y antes de cada feature*
