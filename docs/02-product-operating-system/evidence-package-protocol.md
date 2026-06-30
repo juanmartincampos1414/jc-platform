@@ -85,6 +85,7 @@ No emitir un Evidence Package por:
 | EP-001 | Universal Workflow | Sprint 1-3 | `[Core Primitive Candidate]` |
 | EP-002 | Learning Boundaries | Sprint 5 | `[Core Primitive Candidate]` |
 | EP-003 | Intelligence Levels | Sprint 6 | `[Core Primitive Candidate]` |
+| EP-004 | Product Review Framework | Product Review v1.0 | `[Core Primitive Candidate]` — emitir al validar primera instancia |
 
 ---
 
