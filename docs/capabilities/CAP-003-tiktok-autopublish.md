@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-07-01
 **Framework:** Capability Validation v1.0
-**Estado:** `Validated` (sandbox / cuenta test privada) — producción gated por audit de TikTok
+**Capability:** `Validated`  ·  **Availability (General):** `Pending TikTok Audit`
 
 ---
 
@@ -36,10 +36,37 @@ El aprobador decide una vez (privacidad + interacciones + disclosure) y el video
 
 Creator visible antes de publicar · privacidad sin default · interacciones (comment/duet/stitch) sin tildar y greyed según creator_info · toggle de divulgación comercial (Your Brand / Branded Content) con enforcement · branded ≠ privado · Music Usage Confirmation · aviso de procesamiento · PULL_FROM_URL vía proxy en dominio verificado.
 
-## Alcance y gating
+## Capability vs Availability
 
-- ✅ **Validado** en **sandbox**, cuenta test en modo privado (unaudited clients solo publican a cuentas privadas).
-- ⏳ **Gating:** publicar en cuentas públicas / de clientes requiere aprobar el **audit de TikTok** (2-4 semanas). Al aprobarse se levanta la restricción de cuenta-privada y de SELF_ONLY.
+Distinción explícita (la capacidad no es la disponibilidad):
+
+| | Estado | Depende de |
+|---|---|---|
+| **Capability** — TikTok Autopublish | `Validated` | El producto — demostrado |
+| **Availability** — General Availability | `Pending TikTok Audit` | Aprobación externa de TikTok |
+
+La capacidad **está validada**: se publicó un video real desde la app con el flujo oficial. La **disponibilidad comercial** (cuentas públicas / de clientes) depende de que TikTok apruebe el audit (~2-4 semanas) — **no es una limitación del producto, es una condición del ecosistema de TikTok** (unaudited clients solo publican a cuentas privadas, en SELF_ONLY).
+
+## Evidencia mínima que cambió el estado
+
+El estado pasó a `Validated` por esta evidencia observable — no por "el código debería funcionar":
+
+- Cuenta real conectada (`flips.ar`).
+- Autenticación oficial de TikTok (Login Kit / OAuth).
+- Video enviado y publicación creada (creator_info → video/init PULL_FROM_URL → status), respuesta exitosa de la API.
+- Publicación visible en el perfil de TikTok (privada).
+- Sin intervención manual posterior.
+
+## Qué NO valida CAP-003 v1.0
+
+Esta capacidad, en su v1.0, **no** demuestra (serán validaciones futuras, no pertenecen a esta card):
+
+- Múltiples cuentas simultáneas.
+- Múltiples workspaces.
+- Publicación masiva.
+- Clientes arbitrarios.
+- Escalabilidad.
+- Audit de TikTok aprobado / publicación en cuentas públicas.
 
 ## Estado
 
@@ -47,7 +74,7 @@ Creator visible antes de publicar · privacidad sin default · interacciones (co
 Designed   ✓
 Built      ✓  (OAuth + publish PULL_FROM_URL + UX compliant, deployado)
 Frozen     ✓
-Validated  ✓  (sandbox, evidencia 2026-07-01) — producción gated por audit
+Validated  ✓  (evidencia observable 2026-07-01, sandbox) — Availability: Pending TikTok Audit
 ```
 
 ## Código relacionado

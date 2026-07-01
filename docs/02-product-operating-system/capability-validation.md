@@ -100,6 +100,15 @@ Una capacidad atraviesa cuatro estados. Los dos últimos son los de la Regla 22.
 
 **Built no implica Validated.** Una capacidad puede estar Built y en producción durante semanas sin estar Validated. Validar requiere la evidencia definida en la pregunta 3, medida en la realidad. (Regla 22.)
 
+### Capability vs Availability
+
+`Validated` describe la **capacidad** (el producto la demostró), no necesariamente su **disponibilidad general**. Cuando la disponibilidad comercial depende de una aprobación externa (App Review de Meta, audit de TikTok, verificación de un tercero), se declaran **por separado**:
+
+- **Capability:** `Validated` — el flujo se demostró con éxito, con evidencia observable.
+- **Availability (General):** `Pending <aprobación externa>` — la disponibilidad para cualquier cuenta/cliente depende de un tercero.
+
+Esa distinción evita confundir *"la capacidad no funciona"* con *"todavía no está habilitada comercialmente por una condición del ecosistema, no del producto"*. Toda card gated externamente declara ambos estados, y lista además **qué NO valida** todavía (límites explícitos de esa versión: múltiples cuentas, escalabilidad, clientes arbitrarios, etc.).
+
 ---
 
 ## Capability Card
@@ -114,6 +123,8 @@ Decisión mejorada:     [qué decisión concreta mejora — pregunta 2]
 Comportamiento esperado: [qué cambia el cliente — pregunta 4]
 Evidencia esperada:    [evidencia observable que la valida, definida antes de construir — pregunta 3]
 Estado:                Designed | Built | Frozen | Validated
+Availability:          [General | Pending <aprobación externa>]  (si depende de un tercero)
+Qué NO valida:         [límites explícitos de esta versión]
 ```
 
 Convención de archivo: `docs/capabilities/CAP-NNN-[slug].md`.

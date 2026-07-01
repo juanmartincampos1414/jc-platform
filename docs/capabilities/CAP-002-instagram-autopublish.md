@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-06-30
 **Framework:** Capability Validation v1.0
-**Estado:** `Validated` (alcance: cuenta conectada / test) — disponibilidad para clientes arbitrarios gated por App Review
+**Capability:** `Validated`  ·  **Availability (General):** `Pending Meta App Review`
 
 > Primera capacidad que llega a `Validated` con evidencia observable real (no "el código funciona").
 
@@ -39,10 +39,37 @@ La decisión "¿esta pieza sale?" se resuelve en **una sola acción** dentro de 
 
 Es decir: se demostró en la realidad que la app publica en Instagram, no solo que el código compila.
 
-## Alcance y gating
+## Capability vs Availability
 
-- ✅ **Validado** para cuentas **conectadas / con rol o test** en la app (development mode) — ej: `flips.ar`.
-- ⏳ **Gating:** publicar en cuentas de **clientes arbitrarios** requiere que App Review apruebe `instagram_business_content_publish` (test call ya hecha; review pendiente de envío/aprobación) y, más adelante, verificación de Tech Provider.
+Distinción explícita (la capacidad no es la disponibilidad):
+
+| | Estado | Depende de |
+|---|---|---|
+| **Capability** — Instagram Autopublish | `Validated` | El producto — demostrado |
+| **Availability** — General Availability | `Pending Meta App Review` | Aprobación externa de Meta |
+
+La capacidad **está validada**: el flujo completo se demostró con éxito. La **disponibilidad comercial** (cuentas cualquiera / clientes arbitrarios) todavía depende de que Meta apruebe el App Review — **no es una limitación del producto, es una condición del ecosistema de Meta.**
+
+## Evidencia mínima que cambió el estado
+
+El estado pasó a `Validated` por esta evidencia observable — no por "el código debería funcionar":
+
+- Cuenta real conectada (`flips.ar`).
+- Autenticación oficial de Meta (Instagram Login / OAuth).
+- Publicación creada correctamente (respuesta exitosa de la API con `id`).
+- Publicación visible en Instagram.
+- Sin intervención manual posterior.
+
+## Qué NO valida CAP-002 v1.0
+
+Esta capacidad, en su v1.0, **no** demuestra (serán validaciones futuras, no pertenecen a esta card):
+
+- Múltiples cuentas simultáneas.
+- Múltiples workspaces.
+- Publicación masiva.
+- Clientes arbitrarios.
+- Escalabilidad.
+- App Review aprobado.
 
 ## Estado
 
@@ -50,7 +77,7 @@ Es decir: se demostró en la realidad que la app publica en Instagram, no solo q
 Designed   ✓  (4 preguntas respondidas)
 Built      ✓  (commit 1f816aa, deploy prod dpl_5u6Tc1X9BSxf3tGCUNoXiMyJDMAv, tsc OK)
 Frozen     ✓  (deployado, estable, typecheck limpio)
-Validated  ✓  (cuenta conectada/test, evidencia 2026-06-30) — disponibilidad clientes gated por App Review
+Validated  ✓  (evidencia observable 2026-06-30) — Availability: Pending Meta App Review
 ```
 
 ## Código relacionado
