@@ -14,7 +14,13 @@ El diferencial no es que genera contenido. Es que conecta estrategia → ejecuci
 
 ### Evolución (2026-07): de herramienta de marketing a Sistema Operativo de Marca
 
-JC AI Agency dejó de ser una herramienta de marketing. Es un **sistema operativo de marca** — el marketing es una **consecuencia**, no el objeto. La **materia prima del producto ya no son posts, anuncios ni campañas: es el conocimiento de la marca.** Cuanto mejor entienda el sistema a una marca, mejores serán su contenido, imágenes, videos, anuncios, sitio, estrategia, recomendaciones y decisiones. Por eso el producto no crece por funcionalidades aisladas, sino como un sistema que **entiende una marca cada vez mejor** y usa ese conocimiento para ejecutar toda su operación de marketing. (Ver `capability-portfolio.md` y `capabilities/CAP-004-brand-knowledge-ingestion.md`.)
+JC AI Agency dejó de ser una herramienta de marketing. Es un **sistema operativo de marca** — el marketing es una **consecuencia**, no el objeto. La **materia prima del producto ya no son posts, anuncios ni campañas: es el conocimiento de la marca.** Cuanto mejor entienda el sistema a una marca, mejores serán su contenido, imágenes, videos, anuncios, sitio, estrategia, recomendaciones y decisiones. Por eso el producto no crece por funcionalidades aisladas, sino como un sistema que **entiende una marca cada vez mejor** y usa ese conocimiento para ejecutar toda su operación de marketing.
+
+La forma más precisa de decirlo:
+
+> **JC AI Agency es un empleado de marketing que conoce una marca mejor cada día.**
+
+Un empleado **aprende, recuerda, entiende contexto, propone, ejecuta y mejora con la experiencia.** Por eso **Brand Knowledge Ingestion** deja de ser una feature: es el equivalente a cómo un empleado nuevo aprende cómo funciona la empresa **antes** de empezar a trabajar. Es una de las capacidades más estratégicas del producto. (Ver `capability-portfolio.md`, `capabilities/CAP-004-brand-knowledge-ingestion.md`, y la brújula de la Fase II: `00-start-here/customer-experience-blueprint.md`.)
 
 ---
 
