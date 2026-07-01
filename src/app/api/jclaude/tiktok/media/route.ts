@@ -10,6 +10,8 @@ export const runtime = "nodejs"
 const ALLOWED_HOSTS = [
   "fal.media",
   "fal.run",
+  "supabase.co",       // storage propio (generated-media)
+  "supabase.in",
   "storage.googleapis.com",
   "commondatastorage.googleapis.com",
   "test-videos.co.uk",

@@ -266,7 +266,7 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
       const res = await fetch("/api/jclaude/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brief: post.image_brief, network: post.network }),
+        body: JSON.stringify({ brief: post.image_brief, network: post.network, workspaceId }),
       })
       const data = await res.json()
       if (data.image_url) {

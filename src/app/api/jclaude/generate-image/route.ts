@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
+import { persistMediaToStorage } from "@/lib/storage"
+
+export const maxDuration = 60
 
 const FAL_API_KEY = process.env.FAL_API_KEY
 
 export async function POST(req: NextRequest) {
-  const { brief, network } = await req.json()
+  const { brief, network, workspaceId } = await req.json()
 
   if (!brief) {
     return NextResponse.json({ error: "Missing image brief" }, { status: 400 })
@@ -48,10 +51,15 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const imageUrl = data.images?.[0]?.url
-  if (!imageUrl) {
+  const falUrl = data.images?.[0]?.url
+  if (!falUrl) {
     return NextResponse.json({ error: "No image returned" }, { status: 500 })
   }
+
+  // Re-hostear en storage propio (URL permanente). Fallback a la URL de fal.
+  const imageUrl = workspaceId
+    ? await persistMediaToStorage(falUrl, { workspaceId, kind: "image" })
+    : falUrl
 
   return NextResponse.json({ image_url: imageUrl, prompt })
 }
