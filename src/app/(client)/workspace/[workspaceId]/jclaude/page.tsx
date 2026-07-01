@@ -116,6 +116,13 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
   const [showConnect, setShowConnect] = useState(false)
   const [socialCreds, setSocialCreds] = useState<SocialCredentials>({})
   const [oauthMsg, setOauthMsg] = useState("")
+  const [showTikTokPublish, setShowTikTokPublish] = useState(false)
+  const [ttCreator, setTtCreator] = useState<{ creator_username?: string; creator_avatar_url?: string; privacy_level_options?: string[] } | null>(null)
+  const [ttVideoUrl, setTtVideoUrl] = useState("")
+  const [ttTitle, setTtTitle] = useState("")
+  const [ttPrivacy, setTtPrivacy] = useState("")
+  const [ttPublishing, setTtPublishing] = useState(false)
+  const [ttPublishMsg, setTtPublishMsg] = useState("")
   const [profile, setProfile] = useState<Profile>({
     brand_name: "", industry: "", tone: "profesional y cercano",
     target_audience: "", key_messages: "",
@@ -331,6 +338,45 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
     }
   }
 
+  async function loadTikTokCreator() {
+    setTtCreator(null)
+    setTtPublishMsg("")
+    try {
+      const res = await fetch(`/api/jclaude/tiktok/creator-info?workspaceId=${workspaceId}`)
+      const data = await res.json()
+      if (data.creator) {
+        setTtCreator(data.creator)
+        const opts: string[] = data.creator.privacy_level_options || []
+        setTtPrivacy(opts[0] || "SELF_ONLY")
+      } else {
+        setTtPublishMsg(data.error || "No se pudo cargar la info de la cuenta")
+      }
+    } catch {
+      setTtPublishMsg("No se pudo cargar la info de la cuenta")
+    }
+  }
+
+  async function handlePublishTikTok() {
+    if (!ttVideoUrl.trim()) { setTtPublishMsg("Pegá la URL del video (mp4 público)"); return }
+    setTtPublishing(true)
+    setTtPublishMsg("")
+    try {
+      const res = await fetch("/api/jclaude/publish-tiktok", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId, videoUrl: ttVideoUrl.trim(), title: ttTitle, privacyLevel: ttPrivacy }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setTtPublishMsg(`✓ Enviado a TikTok · estado: ${data.status} · privacidad: ${data.privacy}`)
+      } else {
+        setTtPublishMsg(data.error || "Error al publicar")
+      }
+    } finally {
+      setTtPublishing(false)
+    }
+  }
+
   const stats = {
     total: posts.length,
     approved: posts.filter(p => p.status === "approved").length,
@@ -485,6 +531,12 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
                   </div>
                   <CheckCircle className="w-5 h-5 text-green-500" />
                 </div>
+                <button
+                  onClick={() => { setShowConnect(false); setShowTikTokPublish(true); loadTikTokCreator() }}
+                  className="mt-3 text-sm font-medium text-gray-700 hover:text-black underline"
+                >
+                  Probar publicación en TikTok →
+                </button>
               </div>
             )}
             <div className="text-xs text-gray-400">
@@ -537,6 +589,56 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
         <p className="text-xs text-gray-400 mt-4 text-center">
           Al conectar autorizás a JC AIgency a publicar contenido en tu nombre. Podés revocar el acceso en cualquier momento.
         </p>
+      </div>
+    )
+  }
+
+  // ── TikTok publish (test) ─────────────────────────────────────────────────
+  if (showTikTokPublish) {
+    const privacyOptions = ttCreator?.privacy_level_options ?? ["SELF_ONLY"]
+    return (
+      <div className="p-8 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Publicar en TikTok</h2>
+          <button onClick={() => setShowTikTokPublish(false)} className="text-sm text-gray-500 hover:text-gray-700">← Volver</button>
+        </div>
+
+        {/* Creator — TikTok exige mostrarlo antes de publicar */}
+        {ttCreator ? (
+          <div className="flex items-center gap-3 border border-gray-200 rounded-xl p-4 mb-5">
+            {ttCreator.creator_avatar_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={ttCreator.creator_avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+            )}
+            <div>
+              <div className="font-medium text-gray-900">@{ttCreator.creator_username ?? "—"}</div>
+              <div className="text-xs text-gray-500">Vas a publicar en esta cuenta de TikTok</div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500 mb-5">Cargando info de la cuenta…</div>
+        )}
+
+        <label className="block text-sm font-medium text-gray-700 mb-1">URL del video (mp4 público, ej: Seedance)</label>
+        <input value={ttVideoUrl} onChange={e => setTtVideoUrl(e.target.value)} placeholder="https://..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3" />
+
+        <label className="block text-sm font-medium text-gray-700 mb-1">Título / caption</label>
+        <input value={ttTitle} onChange={e => setTtTitle(e.target.value)} placeholder="Descripción del video" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3" />
+
+        <label className="block text-sm font-medium text-gray-700 mb-1">Privacidad</label>
+        <select value={ttPrivacy} onChange={e => setTtPrivacy(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-5">
+          {privacyOptions.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+
+        <button onClick={handlePublishTikTok} disabled={ttPublishing} className="w-full py-3 bg-black text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-60">
+          {ttPublishing ? "Publicando…" : "Publicar en TikTok"}
+        </button>
+
+        {ttPublishMsg && (
+          <div className="mt-3 text-sm text-gray-700 border border-gray-200 rounded-lg p-3 break-words">{ttPublishMsg}</div>
+        )}
+
+        <p className="text-xs text-gray-400 mt-4">Hasta aprobar el audit de TikTok, todo se publica en privado (SELF_ONLY), solo visible para vos.</p>
       </div>
     )
   }
