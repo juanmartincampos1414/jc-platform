@@ -2,6 +2,7 @@
 
 **Fecha:** 2026-07-01
 **Framework:** Capability Validation v1.0
+**Capability Version:** v1.0
 **Capability:** `Validated`  ·  **Availability (General):** `Pending TikTok Audit`
 
 ---
@@ -67,6 +68,10 @@ Esta capacidad, en su v1.0, **no** demuestra (serán validaciones futuras, no pe
 - Clientes arbitrarios.
 - Escalabilidad.
 - Audit de TikTok aprobado / publicación en cuentas públicas.
+
+## Capability Changelog
+
+- **v1.0** (2026-07-01) — Primera publicación de video validada mediante la Content Posting API oficial de TikTok (Direct Post, PULL_FROM_URL): una cuenta, desde la app, con UX compliant.
 
 ## Estado
 

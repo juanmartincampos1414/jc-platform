@@ -2,6 +2,7 @@
 
 **Fecha:** 2026-06-30
 **Framework:** Capability Validation v1.0
+**Capability Version:** v1.0
 **Capability:** `Validated`  ·  **Availability (General):** `Pending Meta App Review`
 
 > Primera capacidad que llega a `Validated` con evidencia observable real (no "el código funciona").
@@ -70,6 +71,10 @@ Esta capacidad, en su v1.0, **no** demuestra (serán validaciones futuras, no pe
 - Clientes arbitrarios.
 - Escalabilidad.
 - App Review aprobado.
+
+## Capability Changelog
+
+- **v1.0** (2026-06-30) — Primera publicación validada mediante la API oficial de Instagram (Instagram Login): una cuenta, imagen, desde la app.
 
 ## Estado
 

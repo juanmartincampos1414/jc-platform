@@ -109,6 +109,58 @@ Una capacidad atraviesa cuatro estados. Los dos últimos son los de la Regla 22.
 
 Esa distinción evita confundir *"la capacidad no funciona"* con *"todavía no está habilitada comercialmente por una condición del ecosistema, no del producto"*. Toda card gated externamente declara ambos estados, y lista además **qué NO valida** todavía (límites explícitos de esa versión: múltiples cuentas, escalabilidad, clientes arbitrarios, etc.).
 
+### Capability Version
+
+Cada Capability tiene su **propia versión** — no la del producto. Una Capability puede evolucionar muchas veces sin que cambie la versión del producto. Ejemplo (Instagram Autopublish):
+
+- **v1.0** — publicación simple, una cuenta, imagen
+- **v1.1** — múltiples cuentas
+- **v1.2** — Reels
+- **v1.3** — carruseles
+- **v2.0** — autopublicación gobernada por Strategy + Autonomy Policy
+
+La Capability es la misma; lo que evoluciona es su **alcance funcional**.
+
+**¿Qué cambia una versión?** Únicamente cuando cambia **lo que el cliente puede hacer**. La pregunta es siempre:
+
+> ¿Qué puede hacer ahora el cliente que antes no podía?
+
+Si la respuesta cambia, cambia la versión. Si no cambia, la versión permanece. **NO cambia** por refactors, mejoras internas, optimizaciones, cambios de arquitectura o de performance — eso pertenece al **software**, no al **producto**.
+
+### Capability Changelog
+
+Cada Capability mantiene un changelog **mínimo y funcional** — no técnico, no de código: solo qué capacidad nueva obtuvo el cliente en cada versión. Ejemplo:
+
+- **v1.0** — Primera publicación validada mediante la API oficial.
+- **v1.1** — Soporte para múltiples cuentas.
+- **v1.2** — Soporte para Reels.
+- **v2.0** — Autopublicación gobernada por Strategy y Autonomy Policy.
+
+Permite responder al instante, sin recorrer commits ni releases: qué versión usa un cliente, qué cambió desde la anterior, qué evidencia validó cada evolución, qué queda pendiente.
+
+### Capability Lifecycle — las seis dimensiones
+
+Toda Capability queda definida por seis dimensiones permanentes:
+
+| Dimensión | Propósito |
+|---|---|
+| **Estado** | Designed → Built → Frozen → Validated |
+| **Availability** | ¿Depende solo del producto o también de terceros? |
+| **Evidencia** | ¿Qué prueba permitió validar la Capability? |
+| **Qué NO valida** | ¿Qué queda fuera del alcance todavía? |
+| **Capability Version** | Evolución funcional para el cliente |
+| **Capability Changelog** | Historia funcional de la Capability |
+
+---
+
+## Las Capability Cards son el backlog del producto
+
+A partir de este punto, las Capability Cards dejan de ser documentación y pasan a ser el **backlog real del producto**. No un backlog de tareas, ni de pantallas, ni de features: un backlog de **capacidades que el cliente puede adquirir**.
+
+Eso cambia la conversación. En lugar de *"¿qué pantalla construimos después?"* se pregunta *"¿qué nueva capacidad queremos poner en manos del cliente?"*.
+
+Las pantallas cambian, la arquitectura evoluciona, los modelos de IA se reemplazan — pero **las capacidades que adquiere el cliente son las que definen el valor del producto**. Por eso, de acá en más, el **roadmap se lee principalmente como una evolución de Capabilities**, no como una sucesión de funcionalidades. El producto deja de crecer por cantidad de features y crece por la **expansión progresiva de las capacidades** que pone en manos de sus clientes — coherente con JC AI Agency como AI Marketing Operating System.
+
 ---
 
 ## Capability Card
@@ -125,6 +177,8 @@ Evidencia esperada:    [evidencia observable que la valida, definida antes de co
 Estado:                Designed | Built | Frozen | Validated
 Availability:          [General | Pending <aprobación externa>]  (si depende de un tercero)
 Qué NO valida:         [límites explícitos de esta versión]
+Capability Version:    vX.Y
+Capability Changelog:  [entradas funcionales por versión]
 ```
 
 Convención de archivo: `docs/capabilities/CAP-NNN-[slug].md`.
