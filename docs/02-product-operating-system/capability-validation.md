@@ -148,6 +148,7 @@ Capability Validation es un `[Core Primitive Candidate]`. RUN72 debería medir c
 |---|---|---|
 | CAP-001 | Autonomous Action Execution (Sprint 9) | `Built` — pendiente `Validated` |
 | CAP-002 | Autopublicación a Instagram (Instagram Login) | `Validated` (cuenta conectada/test, 2026-06-30) — clientes gated por App Review |
+| CAP-003 | Autopublicación a TikTok (Content Posting API) | `Validated` (sandbox/cuenta privada, 2026-07-01) — producción gated por audit TikTok |
 
 ---
 
