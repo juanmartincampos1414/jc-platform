@@ -38,7 +38,10 @@ export async function middleware(request: NextRequest) {
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password')
   const isLegalPage = pathname.startsWith('/privacy') || pathname.startsWith('/terms') || pathname.startsWith('/data-deletion')
   const isWebhook = pathname.startsWith('/api/meta/webhook') || pathname.startsWith('/api/mercadopago/webhook') || pathname.startsWith('/api/jclaude/oauth/callback') || pathname.startsWith('/api/auth/register')
-  const isPublicPath = pathname === '/' || isAuthPage || isLegalPage || isWebhook
+  // TikTok fetchea sin sesión: el proxy de video (PULL_FROM_URL) y el archivo de verificación de dominio deben ser públicos
+  const isPublicApi = pathname.startsWith('/api/jclaude/tiktok/media')
+  const isDomainVerification = pathname.startsWith('/tiktok') && pathname.endsWith('.txt')
+  const isPublicPath = pathname === '/' || isAuthPage || isLegalPage || isWebhook || isPublicApi || isDomainVerification
 
   const isDevPreview = pathname.startsWith('/workspace/ws-1')
   if (!user && !isPublicPath && !isDevPreview) {
@@ -53,5 +56,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|txt|xml|svg|ico|jpg|jpeg|webp)$).*)'],
 }
