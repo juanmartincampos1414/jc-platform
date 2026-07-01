@@ -12,6 +12,10 @@ No es una herramienta. Es un sistema operativo de marketing.
 
 El diferencial no es que genera contenido. Es que conecta estrategia → ejecución → performance → aprendizaje en un loop continuo, con IA como motor y humanos como aprobadores.
 
+### Evolución (2026-07): de herramienta de marketing a Sistema Operativo de Marca
+
+JC AI Agency dejó de ser una herramienta de marketing. Es un **sistema operativo de marca** — el marketing es una **consecuencia**, no el objeto. La **materia prima del producto ya no son posts, anuncios ni campañas: es el conocimiento de la marca.** Cuanto mejor entienda el sistema a una marca, mejores serán su contenido, imágenes, videos, anuncios, sitio, estrategia, recomendaciones y decisiones. Por eso el producto no crece por funcionalidades aisladas, sino como un sistema que **entiende una marca cada vez mejor** y usa ese conocimiento para ejecutar toda su operación de marketing. (Ver `capability-portfolio.md` y `capabilities/CAP-004-brand-knowledge-ingestion.md`.)
+
 ---
 
 ## 2. Qué NO es

@@ -14,6 +14,10 @@ El cliente nunca compra un Sprint, un commit ni una pantalla. **Compra capacidad
 
 > El software crece Sprint a Sprint. El producto crece Capability a Capability.
 
+### La materia prima es el conocimiento de la marca
+
+Más profundo aún: JC AI Agency dejó de ser una herramienta de marketing — es un **sistema operativo de marca**, y el marketing es una consecuencia. La verdadera materia prima del producto ya no son posts, anuncios ni campañas: es **el conocimiento de una marca**. Cuanto mejor entienda el sistema a la marca, mejores serán su contenido, imágenes, videos, anuncios, sitio, estrategia, recomendaciones y decisiones. Las próximas etapas no construyen features aisladas: construyen un sistema que **entiende una marca cada vez mejor** y usa ese conocimiento para ejecutar toda su operación. (Ver `product-constitution.md`.)
+
 ---
 
 ## Dos vistas del mismo producto
@@ -45,6 +49,7 @@ Las capacidades no tienen todas el mismo nivel de madurez. El portfolio describe
 | CAP-001 | Autonomous Action Execution | v1.0 | `Built` | — (interno) |
 | CAP-002 | Instagram Autopublish | v1.0 | `Validated` | Pending Meta App Review |
 | CAP-003 | TikTok Autopublish | v1.0 | `Validated` | Pending TikTok Audit |
+| CAP-004 | Brand Knowledge Ingestion | (planned) | `Planned` | — |
 
 ### Candidatas a formalizar
 
@@ -56,14 +61,15 @@ Features ya construidas en producción que merecen su propia Capability Card (c�
 - **Brand Intelligence** (Sprint 6)
 - **Knowledge / Decision / Recommendation Engine** (Sprint 2-4)
 
-### Ideas de portfolio (`Planned`)
+### Ideas de portfolio (`Planned`, aún sin card)
 
+- **Intelligent Onboarding** (Sprint 11)
+- **AI Content Factory** (Sprint 12 — el contenido evoluciona a fábrica completa)
+- **Brand Presence** (Sprint 13 — antes "Website Builder"; concepto más amplio)
+- **Paid Media OS** (Sprint 14)
 - Multi-Workspace Publishing
-- Meta Ads Autonomy
-- Budget Optimization
-- Autonomous Campaign Execution
 
-*(Estas dos últimas secciones son backlog: se vuelven "reales" cuando tienen su Capability Card con las 6 dimensiones.)*
+*(Las secciones "Candidatas" e "Ideas" son backlog: se vuelven "reales" cuando tienen su Capability Card con las 6 dimensiones.)*
 
 ---
 
@@ -81,19 +87,17 @@ Nada más. No commits, no pantallas, no sprints.
 - CAP-002 — Instagram Autopublish
 - CAP-003 — TikTok Autopublish
 
-### Release v1.0 — propuesta
+### Roadmap de producto (evolución de Capabilities)
 
-- Multi-Workspace Publishing (CAP nueva)
-- Campaign Strategy (formalizar card)
-- Executive Intelligence (formalizar card)
+| Sprint | Foco / Release | Capabilities |
+|---|---|---|
+| **10** | **Product Experience** (Reliability · Experience · Scope) | consolida las existentes — **no agrega** capabilities. Ver `10-sprints/sprint-10-product-experience.md` |
+| **11** | Intelligent Onboarding | Brand Knowledge Ingestion (CAP-004) + Intelligent Onboarding |
+| **12** | AI Content Factory | fábrica completa (masivo, edición, variantes, A/B, biblioteca, versionado) |
+| **13** | Brand Presence | landing/sitios/blog/SEO/microsites/link-in-bio — misma Brand Memory |
+| **14** | Paid Media OS | Meta/Google/TikTok/LinkedIn Ads con aprendizaje y autonomía |
 
-### Release v1.1 — propuesta
-
-- Meta Ads Autonomy
-- Budget Optimization
-- Autonomous Campaign Execution
-
-*(v1.0 y v1.1 son ilustrativas hasta que cada capability tenga su card.)*
+*(Sprint 11+ son ilustrativas hasta que cada capability tenga su card. Todas alimentadas por CAP-004.)*
 
 ---
 
