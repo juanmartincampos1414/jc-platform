@@ -85,11 +85,17 @@ type IgLogin = {
   token_expires_at?: string
 }
 
+type TikTokCreds = {
+  open_id?: string
+  scope?: string
+}
+
 type SocialCredentials = {
   fb_user_token?: string
   token_expires_at?: string
   connections?: Connection[]
   ig_login?: IgLogin
+  tiktok?: TikTokCreds
 }
 
 const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
@@ -145,6 +151,9 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
       const igOauthResult = urlParams.get("ig_oauth")
       if (igOauthResult === "success") setOauthMsg("✓ Instagram conectado correctamente")
       if (igOauthResult === "error") setOauthMsg("✗ Error al conectar Instagram")
+      const ttOauthResult = urlParams.get("tiktok_oauth")
+      if (ttOauthResult === "success") setOauthMsg("✓ TikTok conectado correctamente")
+      if (ttOauthResult === "error") setOauthMsg("✗ Error al conectar TikTok")
 
       setLoading(false)
       if (subData.subscription) await loadPosts(p.workspaceId)
@@ -287,6 +296,12 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
         return
       }
 
+      // TikTok: publicación requiere pantalla de creator + privacidad (próximo paso)
+      if (post.network === "tiktok") {
+        setPublishMsg("Publicación de TikTok en breve desde acá — falta la pantalla de creator + privacidad que exige TikTok. La conexión de la cuenta ya funciona.")
+        return
+      }
+
       // Buscar la conexión correcta para la red del post (Facebook Login)
       const connections = socialCreds.connections || []
       const conn = connections.find((c: Connection) =>
@@ -409,7 +424,8 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
     const connections = socialCreds.connections || []
     const igLogin = socialCreds.ig_login
     const igConnected = !!igLogin?.ig_user_id
-    const isConnected = connections.length > 0 || igConnected
+    const ttConnected = !!socialCreds.tiktok?.open_id
+    const isConnected = connections.length > 0 || igConnected || ttConnected
     return (
       <div className="p-8 max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
@@ -458,6 +474,19 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
                 </div>
               </div>
             )}
+            {ttConnected && (
+              <div className="border border-gray-300 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-900">TikTok</div>
+                    <div className="text-sm text-gray-500 mt-0.5 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-gray-800" /> Cuenta conectada · publicación de video
+                    </div>
+                  </div>
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                </div>
+              </div>
+            )}
             <div className="text-xs text-gray-400">
               Token expira: {socialCreds.token_expires_at ? new Date(socialCreds.token_expires_at).toLocaleDateString("es-AR") : "—"}
             </div>
@@ -485,6 +514,14 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.9.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.3.07 1.69.07 4.9s0 3.6-.07 4.9c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.3.06-1.69.07-4.9.07s-3.6 0-4.9-.07c-1.17-.05-1.8-.25-2.23-.41a3.7 3.7 0 0 1-1.38-.9 3.7 3.7 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23-.06-1.3-.07-1.69-.07-4.9s0-3.6.07-4.9c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41 1.3-.06 1.69-.07 4.9-.07zm0 1.8c-3.15 0-3.52.01-4.76.07-.9.04-1.39.2-1.71.32-.43.17-.74.37-1.06.69-.32.32-.52.63-.69 1.06-.13.32-.28.81-.32 1.71-.06 1.24-.07 1.61-.07 4.76s.01 3.52.07 4.76c.04.9.2 1.39.32 1.71.17.43.37.74.69 1.06.32.32.63.52 1.06.69.32.13.81.28 1.71.32 1.24.06 1.61.07 4.76.07s3.52-.01 4.76-.07c.9-.04 1.39-.2 1.71-.32.43-.17.74-.37 1.06-.69.32-.32.52-.63.69-1.06.13-.32.28-.81.32-1.71.06-1.24.07-1.61.07-4.76s-.01-3.52-.07-4.76c-.04-.9-.2-1.39-.32-1.71a2.86 2.86 0 0 0-.69-1.06 2.86 2.86 0 0 0-1.06-.69c-.32-.13-.81-.28-1.71-.32-1.24-.06-1.61-.07-4.76-.07zm0 3.06A4.94 4.94 0 1 0 12 16.94 4.94 4.94 0 0 0 12 7.06zm0 8.15A3.21 3.21 0 1 1 12 8.79a3.21 3.21 0 0 1 0 6.42zm6.3-8.35a1.15 1.15 0 1 1-2.3 0 1.15 1.15 0 0 1 2.3 0z"/></svg>
             {igConnected ? `Reconectar Instagram${igLogin?.username ? ` (@${igLogin.username})` : ""}` : "Conectar con Instagram Login"}
+          </a>
+
+          <a
+            href={`/api/jclaude/oauth/tiktok/start?workspaceId=${workspaceId}`}
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold text-sm text-white bg-black transition-opacity hover:opacity-90"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+            {ttConnected ? "Reconectar TikTok" : "Conectar con TikTok"}
           </a>
 
           {isConnected && (
