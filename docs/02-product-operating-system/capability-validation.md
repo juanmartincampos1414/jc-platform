@@ -93,6 +93,7 @@ Una capacidad atraviesa cuatro estados. Los dos últimos son los de la Regla 22.
 
 | Estado | Significa |
 |---|---|
+| **Planned** | Identificada como capacidad futura en el portfolio. Todavía sin Capability Card ni las 4 preguntas. (Estado de backlog, previo al lifecycle.) |
 | **Designed** | Las cuatro preguntas están respondidas. Existe Capability Card. Todavía no hay código. |
 | **Built** | El código funciona y está en producción estable. |
 | **Frozen** | Listo para usarse: diseño cerrado, versionado, con Reflection / Tag / Review. |

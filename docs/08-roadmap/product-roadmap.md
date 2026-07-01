@@ -2,6 +2,8 @@
 ## JC AI Agency
 **Versión:** 0.1 · Junio 2026
 
+> **Vista de Ingeniería** (sprints, dependencias, migraciones, QA, implementación). La **Vista de Producto** — el producto leído como Capabilities que el cliente adquiere — vive en [`capability-portfolio.md`](capability-portfolio.md). Ambas describen el mismo producto desde perspectivas distintas.
+
 ---
 
 ## North Star
