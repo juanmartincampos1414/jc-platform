@@ -117,10 +117,25 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
   const [socialCreds, setSocialCreds] = useState<SocialCredentials>({})
   const [oauthMsg, setOauthMsg] = useState("")
   const [showTikTokPublish, setShowTikTokPublish] = useState(false)
-  const [ttCreator, setTtCreator] = useState<{ creator_username?: string; creator_avatar_url?: string; privacy_level_options?: string[] } | null>(null)
+  const [ttCreator, setTtCreator] = useState<{
+    creator_username?: string
+    creator_nickname?: string
+    creator_avatar_url?: string
+    privacy_level_options?: string[]
+    comment_disabled?: boolean
+    duet_disabled?: boolean
+    stitch_disabled?: boolean
+    max_video_post_duration_sec?: number
+  } | null>(null)
   const [ttVideoUrl, setTtVideoUrl] = useState("")
   const [ttTitle, setTtTitle] = useState("")
   const [ttPrivacy, setTtPrivacy] = useState("")
+  const [ttAllowComment, setTtAllowComment] = useState(false)
+  const [ttAllowDuet, setTtAllowDuet] = useState(false)
+  const [ttAllowStitch, setTtAllowStitch] = useState(false)
+  const [ttDisclosure, setTtDisclosure] = useState(false)
+  const [ttYourBrand, setTtYourBrand] = useState(false)
+  const [ttBrandedContent, setTtBrandedContent] = useState(false)
   const [ttPublishing, setTtPublishing] = useState(false)
   const [ttPublishMsg, setTtPublishMsg] = useState("")
   const [profile, setProfile] = useState<Profile>({
@@ -346,8 +361,7 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
       const data = await res.json()
       if (data.creator) {
         setTtCreator(data.creator)
-        const opts: string[] = data.creator.privacy_level_options || []
-        setTtPrivacy(opts[0] || "SELF_ONLY")
+        setTtPrivacy("") // TikTok exige que el usuario elija privacidad a mano (sin default)
       } else {
         setTtPublishMsg(data.error || "No se pudo cargar la info de la cuenta")
       }
@@ -364,7 +378,11 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
       const res = await fetch("/api/jclaude/publish-tiktok", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId, videoUrl: ttVideoUrl.trim(), title: ttTitle, privacyLevel: ttPrivacy }),
+        body: JSON.stringify({
+          workspaceId, videoUrl: ttVideoUrl.trim(), title: ttTitle, privacyLevel: ttPrivacy,
+          allowComment: ttAllowComment, allowDuet: ttAllowDuet, allowStitch: ttAllowStitch,
+          yourBrand: ttYourBrand, brandedContent: ttBrandedContent,
+        }),
       })
       const data = await res.json()
       if (data.success) {
@@ -593,9 +611,26 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
     )
   }
 
-  // ── TikTok publish (test) ─────────────────────────────────────────────────
+  // ── TikTok publish (audit-compliant) ──────────────────────────────────────
   if (showTikTokPublish) {
-    const privacyOptions = ttCreator?.privacy_level_options ?? ["SELF_ONLY"]
+    const PRIVACY_LABELS: Record<string, string> = {
+      PUBLIC_TO_EVERYONE: "Público",
+      MUTUAL_FOLLOW_FRIENDS: "Amigos (seguidores mutuos)",
+      FOLLOWER_OF_CREATOR: "Seguidores",
+      SELF_ONLY: "Solo yo (privado)",
+    }
+    const privacyOptions = ttCreator?.privacy_level_options ?? []
+    const shownPrivacy = ttBrandedContent ? privacyOptions.filter(o => o !== "SELF_ONLY") : privacyOptions
+    const disclosureIncomplete = ttDisclosure && !ttYourBrand && !ttBrandedContent
+    const brandedPrivate = ttBrandedContent && ttPrivacy === "SELF_ONLY"
+    const canPublish = !!ttVideoUrl.trim() && !!ttPrivacy && !disclosureIncomplete && !brandedPrivate && !ttPublishing
+    const musicText = ttBrandedContent
+      ? "Al publicar, aceptás la Branded Content Policy y la Music Usage Confirmation de TikTok."
+      : "Al publicar, aceptás la Music Usage Confirmation de TikTok."
+    const labelText = ttBrandedContent
+      ? "Tu video se etiquetará como “Paid partnership”."
+      : ttYourBrand ? "Tu video se etiquetará como “Promotional content”." : ""
+
     return (
       <div className="p-8 max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
@@ -603,7 +638,7 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
           <button onClick={() => setShowTikTokPublish(false)} className="text-sm text-gray-500 hover:text-gray-700">← Volver</button>
         </div>
 
-        {/* Creator — TikTok exige mostrarlo antes de publicar */}
+        {/* Creator — obligatorio mostrarlo antes de publicar */}
         {ttCreator ? (
           <div className="flex items-center gap-3 border border-gray-200 rounded-xl p-4 mb-5">
             {ttCreator.creator_avatar_url && (
@@ -611,7 +646,7 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
               <img src={ttCreator.creator_avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
             )}
             <div>
-              <div className="font-medium text-gray-900">@{ttCreator.creator_username ?? "—"}</div>
+              <div className="font-medium text-gray-900">{ttCreator.creator_nickname || `@${ttCreator.creator_username ?? "—"}`}</div>
               <div className="text-xs text-gray-500">Vas a publicar en esta cuenta de TikTok</div>
             </div>
           </div>
@@ -623,14 +658,72 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
         <input value={ttVideoUrl} onChange={e => setTtVideoUrl(e.target.value)} placeholder="https://..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3" />
 
         <label className="block text-sm font-medium text-gray-700 mb-1">Título / caption</label>
-        <input value={ttTitle} onChange={e => setTtTitle(e.target.value)} placeholder="Descripción del video" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3" />
+        <input value={ttTitle} onChange={e => setTtTitle(e.target.value)} placeholder="Descripción del video" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4" />
 
-        <label className="block text-sm font-medium text-gray-700 mb-1">Privacidad</label>
-        <select value={ttPrivacy} onChange={e => setTtPrivacy(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-5">
-          {privacyOptions.map(o => <option key={o} value={o}>{o}</option>)}
+        {/* Privacidad — sin default: el usuario elige */}
+        <label className="block text-sm font-medium text-gray-700 mb-1">Quién puede ver este video</label>
+        <select value={ttPrivacy} onChange={e => setTtPrivacy(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4">
+          <option value="" disabled>— Elegí una opción —</option>
+          {shownPrivacy.map(o => <option key={o} value={o}>{PRIVACY_LABELS[o] ?? o}</option>)}
         </select>
 
-        <button onClick={handlePublishTikTok} disabled={ttPublishing} className="w-full py-3 bg-black text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-60">
+        {/* Interacción — ninguno tildado por default; deshabilitado si la cuenta no lo permite */}
+        <div className="mb-4">
+          <div className="text-sm font-medium text-gray-700 mb-2">Interacciones permitidas</div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={ttAllowComment} disabled={ttCreator?.comment_disabled} onChange={e => setTtAllowComment(e.target.checked)} />
+              Comentarios{ttCreator?.comment_disabled ? " (no disponible en esta cuenta)" : ""}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={ttAllowDuet} disabled={ttCreator?.duet_disabled} onChange={e => setTtAllowDuet(e.target.checked)} />
+              Duet{ttCreator?.duet_disabled ? " (no disponible)" : ""}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={ttAllowStitch} disabled={ttCreator?.stitch_disabled} onChange={e => setTtAllowStitch(e.target.checked)} />
+              Stitch{ttCreator?.stitch_disabled ? " (no disponible)" : ""}
+            </label>
+          </div>
+        </div>
+
+        {/* Content Disclosure Setting — off por default */}
+        <div className="mb-4 border border-gray-200 rounded-lg p-3">
+          <label className="flex items-center justify-between gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+            <span>Divulgación de contenido comercial</span>
+            <input type="checkbox" checked={ttDisclosure} onChange={e => {
+              const v = e.target.checked
+              setTtDisclosure(v)
+              if (!v) { setTtYourBrand(false); setTtBrandedContent(false) }
+            }} />
+          </label>
+          {ttDisclosure && (
+            <div className="mt-3 space-y-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={ttYourBrand} onChange={e => setTtYourBrand(e.target.checked)} />
+                Tu marca (contenido propio promocional)
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={ttBrandedContent} onChange={e => {
+                  const v = e.target.checked
+                  setTtBrandedContent(v)
+                  if (v && ttPrivacy === "SELF_ONLY") setTtPrivacy("")
+                }} />
+                Contenido de marca (colaboración pagada)
+              </label>
+              {labelText && <div className="text-xs text-gray-600">{labelText}</div>}
+              {disclosureIncomplete && (
+                <div className="text-xs text-red-600">Indicá si el contenido promociona tu marca, a un tercero, o ambos.</div>
+              )}
+              {ttBrandedContent && (
+                <div className="text-xs text-gray-500">El contenido de marca no puede ser privado.</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs text-gray-500 mb-3">{musicText}</p>
+
+        <button onClick={handlePublishTikTok} disabled={!canPublish} className="w-full py-3 bg-black text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40">
           {ttPublishing ? "Publicando…" : "Publicar en TikTok"}
         </button>
 
@@ -638,7 +731,7 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
           <div className="mt-3 text-sm text-gray-700 border border-gray-200 rounded-lg p-3 break-words">{ttPublishMsg}</div>
         )}
 
-        <p className="text-xs text-gray-400 mt-4">Hasta aprobar el audit de TikTok, todo se publica en privado (SELF_ONLY), solo visible para vos.</p>
+        <p className="text-xs text-gray-400 mt-4">El video puede tardar unos minutos en procesarse y aparecer en tu perfil. Hasta aprobar el audit de TikTok, todo se publica en privado (SELF_ONLY).</p>
       </div>
     )
   }

@@ -2,21 +2,37 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getTikTokCreds, TIKTOK_API } from "@/lib/tiktok"
 
-// Publicación en TikTok vía Content Posting API — Direct Post, FILE_UPLOAD.
-// Flujo: creator_info/query → video/init (FILE_UPLOAD) → PUT del video → status/fetch.
-// FILE_UPLOAD evita tener que verificar dominio (los videos viven en fal.ai).
+// Publicación en TikTok — Content Posting API, Direct Post, PULL_FROM_URL.
+// TikTok fetchea el video desde nuestro proxy (/api/jclaude/tiktok/media), que
+// vive en el dominio verificado. Se usa PULL_FROM_URL (no FILE_UPLOAD) porque el
+// contenido ya existe en un servidor — así lo exigen las content-sharing guidelines.
 //
-// Nota: hasta que el app pase el audit de TikTok, todo queda en SELF_ONLY (privado).
+// post_info incluye interacción (comment/duet/stitch) y disclosure comercial
+// (brand_organic_toggle = "Your Brand", brand_content_toggle = "Branded Content").
+// Hasta el audit, todo queda SELF_ONLY.
 
 export const runtime = "nodejs"
 export const maxDuration = 60
 
-const MAX_SINGLE_CHUNK = 64 * 1024 * 1024 // 64MB — subimos en un solo chunk
-
 export async function POST(req: NextRequest) {
-  const { workspaceId, videoUrl, title, privacyLevel } = await req.json()
+  const {
+    workspaceId,
+    videoUrl,
+    title,
+    privacyLevel,
+    allowComment = false,
+    allowDuet = false,
+    allowStitch = false,
+    yourBrand = false,
+    brandedContent = false,
+  } = await req.json()
+
   if (!workspaceId) return NextResponse.json({ error: "Missing workspaceId" }, { status: 400 })
   if (!videoUrl) return NextResponse.json({ error: "Falta el video (videoUrl)" }, { status: 400 })
+  if (!privacyLevel) return NextResponse.json({ error: "Elegí un nivel de privacidad" }, { status: 400 })
+  if (brandedContent && privacyLevel === "SELF_ONLY") {
+    return NextResponse.json({ error: "El contenido de marca (Branded Content) no puede ser privado" }, { status: 400 })
+  }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -30,6 +46,9 @@ export async function POST(req: NextRequest) {
     "Content-Type": "application/json; charset=UTF-8",
   }
 
+  // URL del video servida desde nuestro dominio verificado (para PULL_FROM_URL)
+  const pullUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/jclaude/tiktok/media?url=${encodeURIComponent(videoUrl)}`
+
   try {
     // 1. creator_info → validar privacidad permitida
     const ciRes = await fetch(`${TIKTOK_API}/post/publish/creator_info/query/`, {
@@ -41,34 +60,27 @@ export async function POST(req: NextRequest) {
       throw new Error(ci.error.message || "Error consultando creator info")
     }
     const options: string[] = ci.data?.privacy_level_options ?? ["SELF_ONLY"]
-    const privacy = options.includes(privacyLevel) ? privacyLevel : options[0]
-
-    // 2. descargar el video (fal.ai) a memoria
-    const vidRes = await fetch(videoUrl)
-    if (!vidRes.ok) throw new Error("No se pudo descargar el video de origen")
-    const bytes = Buffer.from(await vidRes.arrayBuffer())
-    const videoSize = bytes.length
-    if (videoSize > MAX_SINGLE_CHUNK) {
-      throw new Error(`Video demasiado grande (${Math.round(videoSize / 1e6)}MB). Chunking >64MB no implementado aún.`)
+    if (!options.includes(privacyLevel)) {
+      throw new Error(`Privacidad '${privacyLevel}' no permitida para esta cuenta`)
     }
 
-    // 3. init (FILE_UPLOAD, single chunk)
+    // 2. init con PULL_FROM_URL
     const initRes = await fetch(`${TIKTOK_API}/post/publish/video/init/`, {
       method: "POST",
       headers: authHeaders,
       body: JSON.stringify({
         post_info: {
           title: String(title ?? "").slice(0, 2200),
-          privacy_level: privacy,
-          disable_comment: false,
-          disable_duet: false,
-          disable_stitch: false,
+          privacy_level: privacyLevel,
+          disable_comment: !allowComment,
+          disable_duet: !allowDuet,
+          disable_stitch: !allowStitch,
+          brand_organic_toggle: !!yourBrand,
+          brand_content_toggle: !!brandedContent,
         },
         source_info: {
-          source: "FILE_UPLOAD",
-          video_size: videoSize,
-          chunk_size: videoSize,
-          total_chunk_count: 1,
+          source: "PULL_FROM_URL",
+          video_url: pullUrl,
         },
       }),
     })
@@ -77,25 +89,12 @@ export async function POST(req: NextRequest) {
       throw new Error(init.error.message || "Error en video/init")
     }
     const publishId: string | undefined = init.data?.publish_id
-    const uploadUrl: string | undefined = init.data?.upload_url
-    if (!publishId || !uploadUrl) throw new Error("init no devolvió publish_id / upload_url")
+    if (!publishId) throw new Error("init no devolvió publish_id")
 
-    // 4. subir el video (un solo chunk)
-    const putRes = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "video/mp4",
-        "Content-Length": String(videoSize),
-        "Content-Range": `bytes 0-${videoSize - 1}/${videoSize}`,
-      },
-      body: new Uint8Array(bytes),
-    })
-    if (!putRes.ok) throw new Error(`Error subiendo el video (HTTP ${putRes.status})`)
-
-    // 5. poll de status (breve; el procesamiento puede continuar en TikTok)
-    let status = "PROCESSING_UPLOAD"
-    for (let i = 0; i < 5; i++) {
-      await new Promise(r => setTimeout(r, 2000))
+    // 3. poll de status (el procesamiento puede continuar en TikTok)
+    let status = "PROCESSING_DOWNLOAD"
+    for (let i = 0; i < 6; i++) {
+      await new Promise(r => setTimeout(r, 2500))
       const stRes = await fetch(`${TIKTOK_API}/post/publish/status/fetch/`, {
         method: "POST",
         headers: authHeaders,
@@ -103,14 +102,19 @@ export async function POST(req: NextRequest) {
       })
       const st = await stRes.json()
       status = st.data?.status ?? status
-      if (status === "PUBLISH_COMPLETE" || status === "FAILED") break
+      if (status === "PUBLISH_COMPLETE" || status === "FAILED") {
+        if (status === "FAILED") {
+          return NextResponse.json({ success: false, publish_id: publishId, status, error: st.data?.fail_reason || "FAILED" }, { status: 500 })
+        }
+        break
+      }
     }
 
     return NextResponse.json({
       success: status !== "FAILED",
       publish_id: publishId,
       status,
-      privacy,
+      privacy: privacyLevel,
       network: "tiktok",
     })
   } catch (err) {
