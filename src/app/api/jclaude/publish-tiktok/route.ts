@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     })
     const ci = await ciRes.json()
     if (ci.error?.code && ci.error.code !== "ok") {
-      throw new Error(ci.error.message || "Error consultando creator info")
+      throw new Error(`[creator_info:${ci.error.code}] ${ci.error.message || ""} (log ${ci.error.log_id ?? "?"})`)
     }
     const options: string[] = ci.data?.privacy_level_options ?? ["SELF_ONLY"]
     if (!options.includes(privacyLevel)) {
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     })
     const init = await initRes.json()
     if (init.error?.code && init.error.code !== "ok") {
-      throw new Error(init.error.message || "Error en video/init")
+      throw new Error(`[init:${init.error.code}] ${init.error.message || ""} (log ${init.error.log_id ?? "?"})`)
     }
     const publishId: string | undefined = init.data?.publish_id
     if (!publishId) throw new Error("init no devolvió publish_id")
