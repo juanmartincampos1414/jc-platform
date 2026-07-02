@@ -68,7 +68,7 @@ Hoy el mismo contenido tiene **tres representaciones**:
 
 1. **Inventario** — este documento. ✅
 2. **Compatibilidad** — resolver la decisión de `campaign_id` (ADR-007: nullable, migr. 016 ✅); dual-write a `assets` confiable; `campaign_id` nullable; assets siempre creados. ✅
-3. **Backfill** — copiar los `jclaude_posts` / `social_posts` existentes que aún no tengan su `asset` (idempotente por `source_table` + `source_id`). *No destructivo.* ✅ **Migration `017_backfill_content_assets.sql`** (rollback: `ROLLBACK_017.sql`). Cierra la brecha que dejó el dual-write fire-and-forget previo al fix de Generate Month. `campaign_id = NULL` (ADR-007). Filas tagueadas `metadata.backfill = '017'`.
+3. **Backfill** — copiar los `jclaude_posts` / `social_posts` existentes que aún no tengan su `asset` (idempotente por `source_table` + `source_id`). *No destructivo.* ✅ **Aplicada 2026-07-01 — Migration `017_backfill_content_assets.sql`** (rollback: `ROLLBACK_017.sql`). **Resultado: 0 gaps** (46 jclaude_posts, todos con asset; social_posts vacía; 017 insertó 0 filas). El dual-write resultó confiable en la práctica → `assets` (112 filas) ya contenía todo el histórico. Verificado por datos, no por asunción. La 017 queda como red de seguridad idempotente. `campaign_id = NULL` (ADR-007), filas tagueadas `metadata.backfill = '017'`.
 4. **Cutover de lectura** — apuntar JClaude calendario + cron-publish + dashboard a `assets` (vía adapter), **un consumer a la vez**, verificando. El dual-write sigue activo (datos en ambas). ⬅️ **Próximo paso tras aplicar 017.**
 5. **Quitar el dual-write** — recién cuando `assets` sea la única lectura estable: dejar de escribir `jclaude_posts` / `social_posts`.
 6. **Eliminar tablas legacy** — solo cuando nadie las lee ni escribe, con backup.
