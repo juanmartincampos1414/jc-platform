@@ -110,6 +110,7 @@ export async function loadBrandKnowledgeContext(
     .eq("status", "active")
     .neq("memory_type", "brand")   // brand identity se maneja por separado
     .order("confidence", { ascending: false })
+    .limit(30)
 
   const objects: KnowledgeObject[] = (memories ?? []).map(m => ({
     type:        m.memory_type as KnowledgeObject["type"],
@@ -123,13 +124,14 @@ export async function loadBrandKnowledgeContext(
 
   // Construir texto de contexto para el prompt de Claude
   // Solo incluir conocimientos con confidence > 0.3 (al menos 6 assets analizados)
-  const relevant = objects.filter(o => o.confidence > 0.3)
+  // Cap: top 8 por confidence + contenido truncado → evita inflar el prompt de Claude
+  const relevant = objects.filter(o => o.confidence > 0.3).slice(0, 8)
 
   const promptContext = relevant.length === 0
     ? ""
     : [
         "\nCONOCIMIENTO PREVIO DE ESTA MARCA (basado en campañas anteriores):",
-        ...relevant.map(o => `- ${o.title}: ${o.content}`),
+        ...relevant.map(o => `- ${o.title}: ${(o.content ?? "").slice(0, 180)}`),
         "Usar este conocimiento para informar el calendario. No copiar literalmente.",
       ].join("\n")
 

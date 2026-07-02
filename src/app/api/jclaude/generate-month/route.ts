@@ -165,7 +165,7 @@ ${videosPerMonth > 0
   : `{"posts":[{"date":"${year}-${String(month).padStart(2,"0")}-01","time":"09:00","network":"instagram","post_type":"post","copy":"texto del post","hashtags":"#hash1 #hash2","image_brief":"descripción imagen"}]}`
 }`
       }],
-    })
+    }, { maxRetries: 0, timeout: 45_000 })   // falla rápido (no muro silencioso de 60s ni reintentos del SDK)
   } catch (claudeErr) {
     const errMsg = claudeErr instanceof Error ? claudeErr.message : String(claudeErr)
     await supabase.from("agent_jobs").update({
