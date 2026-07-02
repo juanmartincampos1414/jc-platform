@@ -177,7 +177,7 @@ export async function insertCreativeForPost(
   supabase: SupabaseClient,
   params: {
     workspaceId:  string
-    campaignId:   string
+    campaignId:   string | null   // null = contenido sin campaña (ADR-007)
     content:      string   // copy + hashtags concatenados
     agentJobId?:  string
     sourceTable?: string
@@ -188,7 +188,7 @@ export async function insertCreativeForPost(
     .from("creatives")
     .insert({
       workspace_id:  params.workspaceId,
-      campaign_id:   params.campaignId,
+      campaign_id:   params.campaignId ?? null,
       creative_type: "copy",
       status:        "draft",
       content:       params.content,
@@ -208,7 +208,7 @@ export async function insertAssetForCreative(
   supabase: SupabaseClient,
   params: {
     workspaceId:  string
-    campaignId:   string
+    campaignId:   string | null   // null = contenido sin campaña (ADR-007)
     creativeId:   string   // obligatorio — assets sin creative_id viola el dominio
     channel:      string
     assetType:    string
@@ -228,7 +228,7 @@ export async function insertAssetForCreative(
     .from("assets")
     .insert({
       workspace_id:  params.workspaceId,
-      campaign_id:   params.campaignId,
+      campaign_id:   params.campaignId ?? null,
       creative_id:   params.creativeId,
       agent_job_id:  params.agentJobId  ?? null,
       asset_type:    normalizedType,

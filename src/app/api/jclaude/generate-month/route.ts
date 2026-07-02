@@ -240,11 +240,14 @@ ${videosPerMonth > 0
   type VideoAssetRef = { assetId: string; brief: string; network: string; caption: string }
   const videoAssetRefs: VideoAssetRef[] = []
 
-  if (campaign && videos.length > 0) {
+  // Contenido de JClaude puede no tener campaña (ADR-007): campaign_id = null
+  const resolvedCampaignId = campaign?.id ?? null
+
+  if (videos.length > 0) {
     for (const v of videos) {
       const { creativeId } = await insertCreativeForPost(supabase, {
         workspaceId,
-        campaignId:  campaign.id,
+        campaignId:  resolvedCampaignId,
         content:     v.caption + (v.hashtags ? `\n\n${v.hashtags}` : ""),
         agentJobId:  agentJob?.id,
       }).catch(() => ({ creativeId: undefined, error: "video creative error" }))
@@ -253,7 +256,7 @@ ${videosPerMonth > 0
 
       const { assetId } = await insertAssetForCreative(supabase, {
         workspaceId,
-        campaignId:  campaign.id,
+        campaignId:  resolvedCampaignId,
         creativeId,
         channel:     v.network,
         assetType:   "video",
@@ -277,16 +280,16 @@ ${videosPerMonth > 0
     }
   }
 
-  if (campaign && inserted) {
-    // Fire-and-forget — no bloquea la respuesta
-    Promise.all(
+  if (inserted) {
+    // Await en paralelo: garantiza que cada post tenga su asset antes de responder
+    await Promise.all(
       plan.map(async (p, i) => {
         const legacyId = inserted[i]?.id
 
         // 7a. Insertar Creative
         const { creativeId, error: crErr } = await insertCreativeForPost(supabase, {
           workspaceId,
-          campaignId:  campaign.id,
+          campaignId:  resolvedCampaignId,
           content:     p.copy + (p.hashtags ? `\n\n${p.hashtags}` : ""),
           agentJobId:  agentJob?.id,
           sourceTable: legacyId ? "jclaude_posts" : undefined,
@@ -305,14 +308,14 @@ ${videosPerMonth > 0
           entityId:   creativeId,
           actorType:  "agent",
           brandId:    brand?.id,
-          campaignId: campaign.id,
+          campaignId: resolvedCampaignId ?? undefined,
           metadata:   { agent_job_id: agentJob?.id },
         })
 
         // 7b. Insertar Asset vinculado al Creative
         const { assetId, error: assetErr } = await insertAssetForCreative(supabase, {
           workspaceId,
-          campaignId:  campaign.id,
+          campaignId:  resolvedCampaignId,
           creativeId,
           channel:     p.network,
           assetType:   p.post_type,
@@ -337,7 +340,7 @@ ${videosPerMonth > 0
           entityId:   assetId,
           actorType:  "agent",
           brandId:    brand?.id,
-          campaignId: campaign.id,
+          campaignId: resolvedCampaignId ?? undefined,
           metadata:   { creative_id: creativeId, agent_job_id: agentJob?.id },
         })
       })
