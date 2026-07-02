@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk"
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse, after } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getOrCreateDefaultBrand, getOrCreateDefaultCampaign } from "@/lib/adapters/campaigns"
 import { insertCreativeForPost, insertAssetForCreative, deleteDraftAssets } from "@/lib/adapters/assets"
@@ -393,15 +393,19 @@ ${videosPerMonth > 0
   ])
 
   // ── 10. Knowledge Extraction + Decision Generation ───────────
-  // Awaited: en Vercel serverless las promesas fire-and-forget mueren al retornar.
-  // El pipeline completo debe terminar antes de devolver la respuesta.
+  // Corre DESPUÉS de enviar la respuesta (Next `after`): no cuenta contra el
+  // tiempo del request → evita el timeout de 60s. El contenido ya está generado;
+  // el pipeline de conocimiento se procesa en background.
   if (brand) {
-    try {
-      await extractAndStoreKnowledge(supabase, workspaceId, brand.id, campaign?.id)
-    } catch (err) {
-      console.error("[generate-month] Knowledge/Decision pipeline error:", err)
-      // No bloquea la respuesta — el contenido ya fue generado
-    }
+    const brandId = brand.id
+    const campaignId = campaign?.id
+    after(async () => {
+      try {
+        await extractAndStoreKnowledge(supabase, workspaceId, brandId, campaignId)
+      } catch (err) {
+        console.error("[generate-month] Knowledge/Decision pipeline error:", err)
+      }
+    })
   }
 
   return NextResponse.json({
