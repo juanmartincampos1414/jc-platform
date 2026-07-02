@@ -412,5 +412,40 @@ Ver `capability-validation.md`.
 
 ---
 
+## Regla 24 — Toda operación IA crítica tiene un presupuesto temporal
+
+Una operación que sostiene un **flujo principal del producto** nunca debe depender de **una única llamada larga** contra un runtime con límite de duración. Si lo hace, el flujo principal queda a merced del presupuesto temporal de esa llamada — y cuando el contexto crece o el modelo se ralentiza, se rompe sin que la UI ni el modelo tengan la culpa.
+
+**Origen:** incidente *Generate Month* (2026-07-01). El flujo principal de JClaude se rompía no por la UI ni por el modelo, sino porque una generación de un mes completo excedía el límite de 60s del runtime (Vercel Hobby). Parecía un problema del botón; era un problema de **presupuesto temporal**. Ver `docs/incidents/2026-07-01-generate-month-regression.md`.
+
+**La regla:** toda operación IA que sostiene un flujo principal debe cumplir **al menos una** de estas condiciones:
+
+- ejecutarse **por chunks** (dividir el trabajo en unidades más chicas);
+- ejecutarse **en paralelo** (el reloj de pared ≈ la unidad más lenta, no la suma);
+- ejecutarse como **background job** (el usuario no espera sincrónicamente);
+- ejecutarse mediante **queue** (desacople total del request);
+- o ejecutarse bajo un **runtime que soporte esa duración** (elegido explícitamente, no por default).
+
+Antes de wirear una operación IA a un flujo principal, se responde: *¿en qué presupuesto temporal corre, y cuál de estas condiciones cumple?* Si la respuesta es "una sola llamada larga bajo un runtime que no la garantiza", **no está lista**.
+
+Esto no es solo un fix — es un patrón arquitectónico de Fase II. Pensar las generaciones IA como llamadas individuales **no escala**; van pensadas como operaciones acotadas en el tiempo desde el diseño.
+
+---
+
+## Regla 25 — Flujo principal roto ⇒ se detiene el roadmap
+
+Cuando un **flujo principal del producto** se rompe, la respuesta es siempre la misma, en este orden:
+
+```
+NO se agregan nuevas capacidades.
+NO se continúan migraciones.
+NO se sigue el roadmap.
+Primero se recupera el flujo principal.
+```
+
+No se busca un parche: se busca la **causa raíz**, se **documenta**, se **corrige**, y **recién después** se retoma el roadmap exactamente donde se había detenido. El incidente *Generate Month* (2026-07-01) confirmó que esta disciplina funciona: recuperar el corazón del producto antes de seguir construyendo fortalece más al producto que cualquier ladrillo nuevo.
+
+---
+
 *Documento vive en `/docs/02-product-operating-system/build-rules.md`*  
 *Este documento se lee al inicio de cada sprint y antes de cada feature*
