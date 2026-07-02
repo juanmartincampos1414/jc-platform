@@ -49,10 +49,19 @@ export async function GET(req: NextRequest) {
       const data = await res.json()
 
       if (data.success) {
+        const publishedAt = new Date().toISOString()
         await supabaseAdmin
           .from("jclaude_posts")
-          .update({ status: "published", published_at: new Date().toISOString() })
+          .update({ status: "published", published_at: publishedAt })
           .eq("id", post.id)
+
+        // Paso 4a — sincronizar el asset vinculado (best-effort)
+        const { error: assetErr } = await supabaseAdmin
+          .from("assets")
+          .update({ status: "published", updated_at: publishedAt })
+          .eq("source_table", "jclaude_posts")
+          .eq("source_id", post.id)
+        if (assetErr) console.error("[cron-publish] Asset status sync error:", assetErr.message)
 
         results.push({ id: post.id, success: true, post_id: data.post_id })
       } else {

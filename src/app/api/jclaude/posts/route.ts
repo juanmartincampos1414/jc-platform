@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
+// Asset Domain Migration — Paso 4a: sincronización de estados jclaude_posts → assets.
+// El calendario todavía escribe jclaude_posts; este mapa mantiene el asset vinculado
+// en sync para que el cutover de lectura (Paso 4c) muestre estados correctos.
+const JCLAUDE_TO_ASSET_STATUS: Record<string, string> = {
+  draft:         "draft",
+  approved:      "approved",
+  rejected:      "rejected",
+  needs_changes: "needs_changes",
+  scheduled:     "scheduled",
+  published:     "published",
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const workspaceId = searchParams.get("workspaceId")
@@ -48,5 +60,21 @@ export async function PATCH(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Paso 4a — sincronizar el asset vinculado (best-effort; no rompe la respuesta).
+  // Busca el asset por trazabilidad (source_table + source_id) y refleja estado /
+  // scheduled_at / imagen. Mantiene assets como fuente de verdad consistente.
+  const assetStatus = JCLAUDE_TO_ASSET_STATUS[status as string]
+  const assetUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (assetStatus) assetUpdate.status = assetStatus
+  if (scheduled_at) assetUpdate.scheduled_at = scheduled_at
+  if (image_url) assetUpdate.file_urls = [image_url]
+  const { error: assetErr } = await supabase
+    .from("assets")
+    .update(assetUpdate)
+    .eq("source_table", "jclaude_posts")
+    .eq("source_id", id)
+  if (assetErr) console.error("[jclaude/posts] Asset status sync error:", assetErr.message)
+
   return NextResponse.json({ post: data })
 }
