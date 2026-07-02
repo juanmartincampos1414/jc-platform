@@ -202,46 +202,66 @@ export default function JClaude({ params }: { params: Promise<{ workspaceId: str
   }
 
   async function handleGenerateMonth() {
-    if (!subscription) return
+    if (!subscription || !workspaceId) return
     setGenerating(true)
     try {
+      // 1. Disparar el job (responde al instante con jobId; genera en background)
       const res = await fetch("/api/jclaude/generate-month", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId, month, year, profile, subscription }),
       })
       const data = await res.json()
-      if (!res.ok || data.error) {
-        toast.error(`${data.error || "Error"}${data.raw ? ": " + data.raw.slice(0, 100) : ""}`)
+      if (!res.ok || data.error || !data.jobId) {
+        toast.error(data.error || "No se pudo iniciar la generación")
         return
       }
-      if (data.posts) {
-        setPosts(prev => {
-          const kept = prev.filter(p => !p.scheduled_at?.startsWith(`${year}-${String(month).padStart(2,"0")}`))
-          return [...kept, ...data.posts]
-        })
-        const videoCount = data.videos_count ?? 0
-        if (videoCount > 0) {
-          toast.success(`${data.posts.length} posts + ${videoCount} videos generándose en background`)
-          // Generar cada video en background (fire-and-forget desde el cliente)
-          for (const v of (data.videos ?? [])) {
-            fetch("/api/jclaude/generate-video", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                assetId:     v.assetId,
-                brief:       v.brief,
-                network:     v.network,
-                workspaceId,
-              }),
-            }).catch(err => console.error("[generate-video] Error:", err))
-          }
-        } else {
-          toast.success(`${data.posts.length} posts generados`)
+
+      // 2. Polling del estado del job (cap cliente ~2 min)
+      const jobId  = data.jobId as string
+      const started = Date.now()
+      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+      while (Date.now() - started < 120_000) {
+        await sleep(3000)
+        let sd: { status?: string; error_message?: string | null; output?: { count?: number; videos?: Array<{ assetId: string; brief: string; network: string }>; videos_count?: number } | null }
+        try {
+          const sres = await fetch(`/api/jclaude/generate-month/status?workspaceId=${workspaceId}&jobId=${jobId}`)
+          sd = await sres.json()
+        } catch {
+          continue   // error transitorio de red: reintentar en el próximo tick
         }
-      } else {
-        toast.error("No se generaron posts")
+
+        if (sd.status === "completed") {
+          await loadPosts(workspaceId)
+          const videos = sd.output?.videos ?? []
+          const count  = sd.output?.count ?? 0
+          if (videos.length > 0) {
+            toast.success(`${count} posts + ${videos.length} videos generándose en background`)
+            // Generar cada video en background (fire-and-forget desde el cliente)
+            for (const v of videos) {
+              fetch("/api/jclaude/generate-video", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ assetId: v.assetId, brief: v.brief, network: v.network, workspaceId }),
+              }).catch(err => console.error("[generate-video] Error:", err))
+            }
+          } else {
+            toast.success(`${count} posts generados`)
+          }
+          return
+        }
+
+        if (sd.status === "failed") {
+          toast.error(`Error generando el mes: ${sd.error_message || "desconocido"}`)
+          return
+        }
+        // status "running": seguir esperando
       }
+
+      // Cap del cliente alcanzado: el job puede seguir en background. Refrescamos por las dudas.
+      toast.message("La generación está tardando más de lo normal. Revisá el calendario en unos minutos.")
+      await loadPosts(workspaceId)
     } finally {
       setGenerating(false)
     }
