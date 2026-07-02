@@ -131,6 +131,8 @@ export async function POST(req: NextRequest) {
   })
 
   // ── 4. Llamar a Claude ────────────────────────────────────────
+  const tClaude = Date.now()
+  console.log(`[gm-timing] pre-claude_ms=${tClaude - jobStart} ctxchars=${(knowledgeContext?.length ?? 0) + (decisionContext?.length ?? 0)} posts=${postsLimit} videos=${videosPerMonth}`)
   let message: Awaited<ReturnType<typeof anthropic.messages.create>>
   try {
     message = await anthropic.messages.create({
@@ -177,6 +179,8 @@ ${videosPerMonth > 0
     })
     return NextResponse.json({ error: "Error llamando a Claude", detail: errMsg }, { status: 500 })
   }
+
+  console.log(`[gm-timing] claude_ms=${Date.now() - tClaude} in=${message.usage.input_tokens} out=${message.usage.output_tokens}`)
 
   // ── 5. Parsear respuesta ──────────────────────────────────────
   const raw = message.content[0].type === "text" ? message.content[0].text : ""
@@ -407,6 +411,8 @@ ${videosPerMonth > 0
       }
     })
   }
+
+  console.log(`[gm-timing] total_ms=${Date.now() - jobStart} posts_inserted=${inserted?.length ?? 0} videos=${videoAssetRefs.length}`)
 
   return NextResponse.json({
     posts:        inserted,
