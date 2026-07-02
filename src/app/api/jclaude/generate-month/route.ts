@@ -281,8 +281,9 @@ ${videosPerMonth > 0
   }
 
   if (inserted) {
-    // Await en paralelo: garantiza que cada post tenga su asset antes de responder
-    await Promise.all(
+    // Best-effort, no bloquea la respuesta (evita timeout). La consistencia
+    // la garantiza el backfill idempotente (Asset Domain Migration Plan, Paso 3).
+    void Promise.all(
       plan.map(async (p, i) => {
         const legacyId = inserted[i]?.id
 
