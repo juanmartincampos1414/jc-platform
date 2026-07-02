@@ -143,72 +143,100 @@ export async function POST(req: NextRequest) {
           : Promise.resolve(),
       ])
 
-      // 3c. Llamar a Claude — STREAMING (evita timeouts de proxy/SDK con max_tokens alto)
+      // 3c. Llamar a Claude — CHUNKS EN PARALELO (Hobby: 60s cap).
+      // En vez de 1 llamada de todos los posts (~60-70s), N llamadas concurrentes
+      // de pocos posts c/u (~15-20s). Wall-clock ≈ la más lenta → entra en 52s.
       const tClaude = Date.now()
       console.log(`[gm-timing] pre-claude_ms=${tClaude - jobStart} ctxchars=${(knowledgeContext?.length ?? 0) + (decisionContext?.length ?? 0)} posts=${postsLimit} videos=${videosPerMonth}`)
 
-      const prompt = `Creá un calendario de contenido para ${monthName} ${year} para una marca argentina.
+      const monthPad  = String(month).padStart(2, "0")
+      const brandLine = `MARCA: ${profile.brand_name || "la marca"} | Rubro: ${profile.industry || "general"} | Tono: ${profile.tone || "profesional"} | Audiencia: ${profile.target_audience || "general"}`
+      const ctx       = `${knowledgeContext}${decisionContext}`
 
-MARCA: ${profile.brand_name || "la marca"} | Rubro: ${profile.industry || "general"} | Tono: ${profile.tone || "profesional"} | Audiencia: ${profile.target_audience || "general"}
-${knowledgeContext}${decisionContext}
-REGLAS POSTS:
-- Exactamente ${postsLimit} posts distribuidos en el mes (días 1 al ${daysInMonth})
+      // Repartir postsLimit en chunks de <=4, cada uno con su rango de días (sin colisiones)
+      const CHUNK_SIZE = 4
+      const chunkCount = Math.max(1, Math.ceil(postsLimit / CHUNK_SIZE))
+      const daysPerChunk = Math.ceil(daysInMonth / chunkCount)
+      const chunks: { count: number; dayStart: number; dayEnd: number }[] = []
+      let remainingPosts = postsLimit
+      for (let c = 0; c < chunkCount && remainingPosts > 0; c++) {
+        const count = Math.min(CHUNK_SIZE, remainingPosts)
+        remainingPosts -= count
+        chunks.push({
+          count,
+          dayStart: c * daysPerChunk + 1,
+          dayEnd:   Math.min((c + 1) * daysPerChunk, daysInMonth),
+        })
+      }
+
+      const postChunkPrompt = (count: number, dayStart: number, dayEnd: number) => `Creá contenido para redes de una marca argentina, ${monthName} ${year}.
+${brandLine}
+${ctx}
+REGLAS:
+- Exactamente ${count} posts entre los días ${dayStart} y ${dayEnd} del mes (fechas distintas)
 - Redes: ${networks.join(", ")}
 - Tipos: post, reel, story
 - Horarios: 09:00, 12:00, 18:00 o 20:00
-- Copy máximo 150 caracteres por post
-- Hashtags: máximo 8
-${videosPerMonth > 0 ? `
-REGLAS VIDEOS (Reels con generación IA):
-- Exactamente ${videosPerMonth} videos distribuidos en el mes (1 por semana aproximadamente)
-- Red: ${networks[0]} (canal principal)
-- Horario: 18:00 o 20:00 (mayor engagement)
-- Caption máximo 100 caracteres
-- Brief: descripción detallada y visual del video para generación con IA (qué se ve, movimiento, ambiente, colores, duración ~5s)
-` : ""}
+- Copy máximo 150 caracteres. Hashtags: máximo 8. image_brief: 1 frase breve.
 Respondé ÚNICAMENTE con este JSON, sin texto adicional, sin markdown:
-${videosPerMonth > 0
-  ? `{"posts":[{"date":"${year}-${String(month).padStart(2,"0")}-01","time":"09:00","network":"instagram","post_type":"post","copy":"texto","hashtags":"#hash1","image_brief":"descripción imagen"}],"videos":[{"date":"${year}-${String(month).padStart(2,"0")}-07","time":"18:00","network":"instagram","caption":"texto del video","hashtags":"#hash1","brief":"descripción detallada para IA del video"}]}`
-  : `{"posts":[{"date":"${year}-${String(month).padStart(2,"0")}-01","time":"09:00","network":"instagram","post_type":"post","copy":"texto del post","hashtags":"#hash1 #hash2","image_brief":"descripción imagen"}]}`
-}`
+{"posts":[{"date":"${year}-${monthPad}-${String(dayStart).padStart(2,"0")}","time":"09:00","network":"instagram","post_type":"post","copy":"texto","hashtags":"#hash1 #hash2","image_brief":"descripción breve"}]}`
 
-      const genPromise = anthropic.messages.stream({
-        model:      MODEL,
-        max_tokens: 4096,
-        messages:   [{ role: "user", content: prompt }],
-      }, { maxRetries: 0 }).finalMessage()
+      const videoPrompt = () => `Creá videos (Reels con generación IA) para una marca argentina, ${monthName} ${year}.
+${brandLine}
+${ctx}
+REGLAS:
+- Exactamente ${videosPerMonth} videos distribuidos en el mes (días 1 al ${daysInMonth}, ~1 por semana)
+- Red: ${networks[0]} | Horario: 18:00 o 20:00
+- Caption máximo 100 caracteres
+- brief: descripción visual para IA (qué se ve, movimiento, ambiente, colores, ~5s)
+Respondé ÚNICAMENTE con este JSON, sin markdown:
+{"videos":[{"date":"${year}-${monthPad}-07","time":"18:00","network":"${networks[0]}","caption":"texto del video","hashtags":"#hash1","brief":"descripción detallada para IA"}]}`
 
-      const message = await Promise.race([
-        genPromise,
+      // Parse robusto de un mensaje (JSON directo → sin fences → substring {..})
+      const parseMessage = (m: Anthropic.Message): { posts: PostPlan[]; videos: VideoPlan[] } => {
+        const raw = m.content[0]?.type === "text" ? m.content[0].text : ""
+        const tryParse = (t: string): { posts?: PostPlan[]; videos?: VideoPlan[] } | null => {
+          try { return JSON.parse(t.trim()) } catch { return null }
+        }
+        let obj = tryParse(raw)
+        if (!obj) {
+          const noFence = raw.split("\n").filter((l: string) => !l.trim().startsWith("```")).join("\n").trim()
+          obj = tryParse(noFence)
+        }
+        if (!obj) {
+          const s = raw.indexOf("{"); const e = raw.lastIndexOf("}")
+          if (s !== -1 && e !== -1) obj = tryParse(raw.slice(s, e + 1))
+        }
+        if (!obj) console.error("[generate-month] Parse failed. Raw:", raw.slice(0, 200))
+        return { posts: obj?.posts ?? [], videos: obj?.videos ?? [] }
+      }
+
+      type ChunkResult = { posts: PostPlan[]; videos: VideoPlan[]; usage: { input_tokens: number; output_tokens: number } }
+      const runCall = (content: string): Promise<ChunkResult> =>
+        anthropic.messages.stream(
+          { model: MODEL, max_tokens: 1500, messages: [{ role: "user", content }] },
+          { maxRetries: 0 }
+        ).finalMessage().then(m => ({ ...parseMessage(m), usage: m.usage }))
+
+      const calls: Promise<ChunkResult>[] = chunks.map(ch => runCall(postChunkPrompt(ch.count, ch.dayStart, ch.dayEnd)))
+      if (videosPerMonth > 0) calls.push(runCall(videoPrompt()))
+
+      // Guarda de wall-clock sobre TODAS las llamadas paralelas
+      const results = await Promise.race([
+        Promise.all(calls),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error(`La generación superó el tiempo límite (${GEN_WALLCLOCK_MS / 1000}s). Reintentá.`)), GEN_WALLCLOCK_MS)
         ),
-      ]) as Awaited<typeof genPromise>
+      ]) as ChunkResult[]
 
-      console.log(`[gm-timing] claude_ms=${Date.now() - tClaude} in=${message.usage.input_tokens} out=${message.usage.output_tokens}`)
+      const plan: PostPlan[]   = results.flatMap(r => r.posts)
+      const videos: VideoPlan[] = results.flatMap(r => r.videos)
+      const totalIn  = results.reduce((s, r) => s + (r.usage?.input_tokens  ?? 0), 0)
+      const totalOut = results.reduce((s, r) => s + (r.usage?.output_tokens ?? 0), 0)
 
-      // 3d. Parsear respuesta
-      const raw = message.content[0]?.type === "text" ? message.content[0].text : ""
-      let plan: PostPlan[]  = []
-      let videos: VideoPlan[] = []
+      console.log(`[gm-timing] claude_ms=${Date.now() - tClaude} calls=${calls.length} posts=${plan.length} videos=${videos.length} in=${totalIn} out=${totalOut}`)
 
-      const parseFull = (text: string) => {
-        try { const p = JSON.parse(text.trim()); plan = p?.posts || []; videos = p?.videos || []; return true } catch { return false }
-      }
-      if (!parseFull(raw)) {
-        try {
-          const lines = raw.split("\n").filter(l => !l.trim().startsWith("```"))
-          parseFull(lines.join("\n").trim())
-        } catch {}
-      }
       if (plan.length === 0) {
-        try {
-          const s = raw.indexOf("{"); const e = raw.lastIndexOf("}")
-          if (s !== -1 && e !== -1) parseFull(raw.slice(s, e + 1))
-        } catch {}
-      }
-      if (plan.length === 0) {
-        console.error("[generate-month] Parse failed. Raw:", raw.slice(0, 300))
         throw new Error("No se pudo parsear la respuesta de IA")
       }
 
@@ -342,8 +370,8 @@ ${videosPerMonth > 0
         status:        "completed",
         output:        { count: plan.length, videos: videoAssetRefs, videos_count: videoAssetRefs.length },
         duration_ms:   durationMs,
-        tokens_input:  message.usage.input_tokens,
-        tokens_output: message.usage.output_tokens,
+        tokens_input:  totalIn,
+        tokens_output: totalOut,
         completed_at:  new Date().toISOString(),
       }).eq("id", jobId)
 
@@ -357,7 +385,7 @@ ${videosPerMonth > 0
           actorType:  "agent",
           brandId:    brand?.id,
           campaignId: campaign?.id,
-          metadata:   { duration_ms: durationMs, count: plan.length, tokens_input: message.usage.input_tokens, tokens_output: message.usage.output_tokens },
+          metadata:   { duration_ms: durationMs, count: plan.length, tokens_input: totalIn, tokens_output: totalOut },
         }),
         emitEvent({
           workspaceId,
